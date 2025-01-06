@@ -10,6 +10,10 @@ export interface User {
   created_at: Date;
 }
 
+export interface UserWithPassword extends User {
+  password_hash: string;
+}
+
 export interface CreateUserDTO {
   email: string;
   username: string;

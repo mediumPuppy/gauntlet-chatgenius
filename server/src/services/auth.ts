@@ -50,9 +50,10 @@ export class AuthService {
     const user = await this.findUserByEmail(credentials.email);
     if (!user) return null;
 
-    const validPassword = await this.comparePasswords(credentials.password, user.password_hash);
-    if (!validPassword) return null;
+    const isValidPassword = await this.comparePasswords(credentials.password, user.password_hash);
+    if (!isValidPassword) return null;
 
+    // Create a new object without the password_hash
     const { password_hash, ...userWithoutPassword } = user;
     const token = this.generateToken(userWithoutPassword);
 
