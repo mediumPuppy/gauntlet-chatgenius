@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from './AuthContext';
 import { useParams } from 'react-router-dom';
+import { API_URL } from '../services/config';
 
 interface Message {
   id: string;
@@ -32,10 +33,38 @@ const MessageContext = createContext<MessageContextType | undefined>(undefined);
 export function MessageProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
-  const { user } = useAuth();
+  const { token } = useAuth();
   const { channelId } = useParams();
 
   const { isConnected, error, sendMessage, sendTyping, ws } = useWebSocket(channelId || '');
+
+  // Fetch message history when channel changes
+  useEffect(() => {
+    setMessages([]); // Clear current messages
+    setTypingUsers([]);
+
+    if (!channelId || !token) return;
+
+    const fetchMessageHistory = async () => {
+      try {
+        const response = await fetch(`${API_URL}/messages?channelId=${channelId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch messages');
+        
+        const data = await response.json();
+        console.log('Fetched messages:', data); // Add logging
+        setMessages(data);
+      } catch (err) {
+        console.error('Error fetching message history:', err);
+      }
+    };
+
+    fetchMessageHistory();
+  }, [channelId, token]);
 
   // Handle incoming WebSocket messages
   useEffect(() => {
@@ -48,16 +77,26 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
       if (data.channelId !== channelId) return;
 
       switch (data.type) {
-        case 'message':
-          setMessages((prev) => [...prev, {
+        case 'message': {
+          const newMessage: Message = {
             id: crypto.randomUUID(),
             content: data.content,
             userId: data.senderId,
             channelId: data.channelId,
             senderName: data.senderName,
             timestamp: data.timestamp,
-          }]);
+          };
+          
+          setMessages((prev) => {
+            const exists = prev.some(msg => 
+              msg.content === newMessage.content && 
+              msg.userId === newMessage.userId &&
+              msg.timestamp === newMessage.timestamp
+            );
+            return exists ? prev : [...prev, newMessage];
+          });
           break;
+        }
 
         case 'typing':
           setTypingUsers((prev) => {
@@ -82,12 +121,6 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
   }, [ws, channelId]);
-
-  // Clear messages when changing channels
-  useEffect(() => {
-    setMessages([]);
-    setTypingUsers([]);
-  }, [channelId]);
 
   return (
     <MessageContext.Provider value={{

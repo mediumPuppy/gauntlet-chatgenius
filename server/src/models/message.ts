@@ -5,11 +5,12 @@ const pool = new Pool(config);
 
 export interface Message {
   id: string;
-  channel_id: string;
-  user_id: string;
   content: string;
-  created_at: Date;
-  username?: string;
+  userId: string;
+  channelId?: string;
+  dmId?: string;
+  senderName: string;
+  timestamp: number;
 }
 
 interface CreateMessageData {
@@ -21,15 +22,32 @@ interface CreateMessageData {
 export const messageQueries = {
   async getChannelMessages(channelId: string): Promise<Message[]> {
     const result = await pool.query(
-      `SELECT m.*, u.username 
+      `SELECT 
+        m.id,
+        m.content,
+        m.user_id,
+        m.channel_id,
+        m.dm_id,
+        u.username as sender_name,
+        m.created_at as timestamp
        FROM messages m 
        JOIN users u ON m.user_id = u.id 
        WHERE m.channel_id = $1 
-       ORDER BY m.created_at DESC 
+       ORDER BY m.created_at ASC
        LIMIT 50`,
       [channelId]
     );
-    return result.rows;
+    
+    // Transform to match client format
+    return result.rows.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      userId: msg.user_id,
+      channelId: msg.channel_id,
+      dmId: msg.dm_id,
+      senderName: msg.sender_name,
+      timestamp: new Date(msg.timestamp).getTime()
+    }));
   },
 
   async createMessage(data: CreateMessageData): Promise<Message> {
@@ -57,9 +75,14 @@ export const messageQueries = {
       [data.userId]
     );
 
+    // Transform to match client format
     return {
-      ...result.rows[0],
-      username: userResult.rows[0].username
+      id: result.rows[0].id,
+      content: result.rows[0].content,
+      userId: result.rows[0].user_id,
+      channelId: result.rows[0].channel_id,
+      senderName: userResult.rows[0].username,
+      timestamp: new Date(result.rows[0].created_at).getTime()
     };
   }
 }; 

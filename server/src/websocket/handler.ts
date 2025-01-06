@@ -116,13 +116,10 @@ export class WebSocketHandler {
         type: 'message',
         channelId: data.channelId,
         content: message.content,
-        senderId: message.user_id,
-        senderName: message.username || 'Unknown User', // Provide fallback for username
-        timestamp: message.created_at.getTime()
+        senderId: message.userId,
+        senderName: message.senderName,
+        timestamp: message.timestamp
       };
-
-      const channelClients = clients.get(data.channelId);
-      console.log('Channel clients:', channelClients ? channelClients.size : 0);
 
       await this.broadcastToChannel(data.channelId, broadcastMessage);
     } catch (error) {

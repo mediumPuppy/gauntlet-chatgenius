@@ -82,7 +82,10 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
     if (dmId) {
       // Verify user is part of the DM and get messages
       messages = await db.query(
-        `SELECT m.*, u.username as sender_name
+        `SELECT 
+          m.*,
+          u.username as sender_name,
+          m.created_at as timestamp
          FROM messages m
          JOIN users u ON m.user_id = u.id
          WHERE m.dm_id = $1
@@ -98,7 +101,10 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
     } else {
       // Verify user is part of the channel and get messages
       messages = await db.query(
-        `SELECT m.*, u.username as sender_name
+        `SELECT 
+          m.*,
+          u.username as sender_name,
+          m.created_at as timestamp
          FROM messages m
          JOIN users u ON m.user_id = u.id
          WHERE m.channel_id = $1
@@ -113,7 +119,18 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
       );
     }
 
-    res.json(messages.rows);
+    // Transform the messages to match the client's expected format
+    const formattedMessages = messages.rows.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      userId: msg.user_id,
+      channelId: msg.channel_id,
+      dmId: msg.dm_id,
+      senderName: msg.sender_name,
+      timestamp: new Date(msg.timestamp).getTime()
+    }));
+
+    res.json(formattedMessages);
   } catch (error) {
     console.error('Failed to get messages:', error);
     res.status(500).json({ error: 'Failed to get messages' });
