@@ -1,13 +1,21 @@
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import db from '../config/db';
+import pool from '../config/database';
+import { User } from '../models/user';
+import { AuthRequest } from '../middleware/auth';
 
-export const startDM = async (req: Request, res: Response) => {
-  const { userId, targetUserId } = req.body;
+export const startDM = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'User not authenticated' });
+    return;
+  }
+
+  const { targetUserId } = req.body;
+  const userId = req.user.id;
   
   try {
     // Check if DM already exists
-    const existingDM = await db.query(
+    const existingDM = await pool.query(
       `SELECT * FROM direct_messages 
        WHERE (user1_id = $1 AND user2_id = $2) 
        OR (user1_id = $2 AND user2_id = $1)`,
@@ -15,28 +23,32 @@ export const startDM = async (req: Request, res: Response) => {
     );
 
     if (existingDM.rows.length > 0) {
-      return res.status(200).json({ dmId: existingDM.rows[0].id });
+      res.status(200).json({ dmId: existingDM.rows[0].id });
+      return;
     }
 
     // Create new DM
     const dmId = uuidv4();
-    await db.query(
+    await pool.query(
       'INSERT INTO direct_messages (id, user1_id, user2_id) VALUES ($1, $2, $3)',
       [dmId, userId, targetUserId]
     );
 
     res.status(201).json({ dmId });
   } catch (error) {
-    console.error('Failed to start DM:', error);
+    console.error('Error in startDM:', error);
     res.status(500).json({ error: 'Failed to start DM' });
   }
 };
 
-export const getUserDMs = async (req: Request, res: Response) => {
-  const userId = req.user.id; // From auth middleware
-  
+export const getUserDMs = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'User not authenticated' });
+    return;
+  }
+
   try {
-    const dms = await db.query(
+    const dms = await pool.query(
       `SELECT 
         dm.id,
         dm.created_at,
@@ -48,16 +60,17 @@ export const getUserDMs = async (req: Request, res: Response) => {
           WHEN dm.user1_id = $1 THEN u2.id
           ELSE u1.id
         END as other_user_id
-       FROM direct_messages dm
-       JOIN users u1 ON dm.user1_id = u1.id
-       JOIN users u2 ON dm.user2_id = u2.id
-       WHERE dm.user1_id = $1 OR dm.user2_id = $1`,
-      [userId]
+      FROM direct_messages dm
+      JOIN users u1 ON dm.user1_id = u1.id
+      JOIN users u2 ON dm.user2_id = u2.id
+      WHERE dm.user1_id = $1 OR dm.user2_id = $1
+      ORDER BY dm.created_at DESC`,
+      [req.user.id]
     );
 
     res.json(dms.rows);
   } catch (error) {
-    console.error('Failed to get DMs:', error);
+    console.error('Error in getUserDMs:', error);
     res.status(500).json({ error: 'Failed to get DMs' });
   }
 }; 
