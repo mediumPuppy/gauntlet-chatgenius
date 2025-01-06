@@ -1,6 +1,18 @@
 import { Request, Response } from 'express';
-import db from '../config/db';
+import pool from '../config/database';
 import { v4 as uuidv4 } from 'uuid';
+
+interface Message {
+  id: string;
+  content: string;
+  user_id: string;
+  username: string;
+  created_at: Date;
+  channel_id?: string;
+  dm_id?: string;
+  sender_name: string;
+  timestamp: Date;
+}
 
 export const createMessage = async (req: Request, res: Response): Promise<void> => {
   const { content, channelId, dmId } = req.body;
@@ -14,7 +26,7 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
   try {
     if (dmId) {
       // Verify user is part of the DM
-      const dmCheck = await db.query(
+      const dmCheck = await pool.query(
         `SELECT * FROM direct_messages 
          WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
         [dmId, userId]
@@ -25,7 +37,7 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
       }
     } else if (channelId) {
       // Verify user is part of the channel
-      const channelCheck = await db.query(
+      const channelCheck = await pool.query(
         'SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2',
         [channelId, userId]
       );
@@ -38,7 +50,7 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const message = await db.query(
+    const message = await pool.query(
       `INSERT INTO messages (id, content, user_id, channel_id, dm_id) 
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
@@ -46,7 +58,7 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
     );
 
     // Get sender info for the response
-    const sender = await db.query(
+    const sender = await pool.query(
       'SELECT username FROM users WHERE id = $1',
       [userId]
     );
@@ -81,7 +93,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
     let messages;
     if (dmId) {
       // Verify user is part of the DM and get messages
-      messages = await db.query(
+      messages = await pool.query(
         `SELECT 
           m.*,
           u.username as sender_name,
@@ -100,7 +112,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
       );
     } else {
       // Verify user is part of the channel and get messages
-      messages = await db.query(
+      messages = await pool.query(
         `SELECT 
           m.*,
           u.username as sender_name,
@@ -120,7 +132,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
     }
 
     // Transform the messages to match the client's expected format
-    const formattedMessages = messages.rows.map(msg => ({
+    const formattedMessages = messages.rows.map((msg: Message) => ({
       id: msg.id,
       content: msg.content,
       userId: msg.user_id,
