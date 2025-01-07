@@ -22,16 +22,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for saved auth state on mount
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-    
-    setIsLoading(false);
+    const validateStoredAuth = async () => {
+      const savedToken = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+      
+      if (savedToken && savedUser) {
+        try {
+          // Validate token by making a request to the server
+          const response = await fetch('/api/auth/validate', {
+            headers: {
+              'Authorization': `Bearer ${savedToken}`
+            }
+          });
+          
+          if (response.ok) {
+            setToken(savedToken);
+            setUser(JSON.parse(savedUser));
+          } else {
+            // If token is invalid, clear storage
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
+        } catch (error) {
+          console.error('Error validating token:', error);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      }
+      
+      setIsLoading(false);
+    };
+
+    validateStoredAuth();
   }, []);
 
   const login = (newToken: string, newUser: User) => {

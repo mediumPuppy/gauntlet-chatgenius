@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../services/auth';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,13 +9,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login: authLogin, user, isLoading: authLoading } = useAuth();
+  const { login: authLogin, isLoading: authLoading } = useAuth();
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/chat');
-    }
-  }, [user, authLoading, navigate]);
+  // Don't show login page while checking auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOrganization } from '../../contexts/OrganizationContext';
 import { createChannel, joinChannel, getAllChannels } from '../../services/channel';
 import { useNavigate } from 'react-router-dom';
 import { useChannels } from '../../contexts/ChannelContext';
@@ -9,6 +10,7 @@ interface Channel {
   name: string;
   is_dm: boolean;
   created_at: string;
+  organization_id: string;
 }
 
 interface ChannelDialogProps {
@@ -23,15 +25,16 @@ export default function ChannelDialog({ isOpen, onClose }: ChannelDialogProps) {
   const [availableChannels, setAvailableChannels] = useState<Channel[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const { token } = useAuth();
+  const { currentOrganization } = useOrganization();
   const navigate = useNavigate();
   const { refreshChannels } = useChannels();
 
   useEffect(() => {
-    if (isOpen && mode === 'join') {
+    if (isOpen && mode === 'join' && currentOrganization) {
       const fetchChannels = async () => {
         try {
           setLoading(true);
-          const channels = await getAllChannels(token!);
+          const channels = await getAllChannels(token!, currentOrganization.id);
           const publicChannels = channels.filter(channel => !channel.is_dm);
           setAvailableChannels(publicChannels);
         } catch (error) {
@@ -42,16 +45,19 @@ export default function ChannelDialog({ isOpen, onClose }: ChannelDialogProps) {
       };
       fetchChannels();
     }
-  }, [isOpen, mode, token]);
+  }, [isOpen, mode, token, currentOrganization]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!channelName.trim()) return;
+    if (!channelName.trim() || !currentOrganization) return;
 
     try {
       setLoading(true);
       if (mode === 'create') {
-        const channel = await createChannel(token!, { name: channelName.trim() });
+        const channel = await createChannel(token!, { 
+          name: channelName.trim(),
+          organization_id: currentOrganization.id
+        });
         await refreshChannels();
         navigate(`/chat/${channel.id}`);
         onClose();

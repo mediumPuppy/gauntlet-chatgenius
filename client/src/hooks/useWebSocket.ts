@@ -33,7 +33,8 @@ export function useWebSocket(channelId: string) {
     isConnecting.current = true;
     setConnectionState('CONNECTING');
 
-    const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}/ws`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.hostname}:3001/ws`;
     const socket = new WebSocket(wsUrl);
     ws.current = socket;
 

@@ -26,14 +26,16 @@ export interface LoginDTO {
 }
 
 export const userQueries = {
-  async searchUsers(query: string, excludeUserId: string): Promise<User[]> {
+  async searchOrganizationUsers(query: string, organizationId: string, excludeUserId: string): Promise<User[]> {
     const result = await pool.query(
-      `SELECT id, username, email, created_at 
-       FROM users 
-       WHERE (username ILIKE $1 OR email ILIKE $1) 
-       AND id != $2 
+      `SELECT DISTINCT u.id, u.username, u.email, u.created_at 
+       FROM users u
+       INNER JOIN organization_members om ON u.id = om.user_id
+       WHERE om.organization_id = $1
+       AND (u.username ILIKE $2 OR u.email ILIKE $2) 
+       AND u.id != $3 
        LIMIT 10`,
-      [`%${query}%`, excludeUserId]
+      [organizationId, `%${query}%`, excludeUserId]
     );
     return result.rows;
   },
@@ -44,5 +46,25 @@ export const userQueries = {
       [id]
     );
     return result.rows[0] || null;
+  },
+
+  async getUserOrganizations(userId: string): Promise<{ organization_id: string; role: string }[]> {
+    const result = await pool.query(
+      'SELECT organization_id, role FROM organization_members WHERE user_id = $1',
+      [userId]
+    );
+    return result.rows;
+  },
+
+  async getOrganizationMembers(organizationId: string): Promise<(User & { role: string })[]> {
+    const result = await pool.query(
+      `SELECT u.id, u.username, u.email, u.created_at, om.role
+       FROM users u
+       INNER JOIN organization_members om ON u.id = om.user_id
+       WHERE om.organization_id = $1
+       ORDER BY u.username`,
+      [organizationId]
+    );
+    return result.rows;
   }
 }; 

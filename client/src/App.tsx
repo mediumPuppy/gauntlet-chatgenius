@@ -1,36 +1,42 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { ChannelProvider } from './contexts/ChannelContext';
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import ChatPage from './pages/ChatPage';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { OrganizationProvider, useOrganization } from './contexts/OrganizationContext';
+import { AppRoutes } from './AppRoutes';
+import { OrganizationDialog } from './components/organization/OrganizationDialog';
 
-function App() {
+const AppContent: React.FC = () => {
+  const { user } = useAuth();
+  const { currentOrganization, organizations } = useOrganization();
+  const [showOrgDialog, setShowOrgDialog] = useState(false);
+
+  useEffect(() => {
+    if (user && organizations.length > 0 && !currentOrganization) {
+      setShowOrgDialog(true);
+    }
+  }, [user, organizations, currentOrganization]);
+
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route 
-            path="/chat/*" 
-            element={
-              <ProtectedRoute>
-                <ChannelProvider>
-                  <ChatPage />
-                </ChannelProvider>
-              </ProtectedRoute>
-            } 
-          >
-            <Route path=":channelId" element={<ChatPage />} />
-          </Route>
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <>
+      <AppRoutes />
+      <OrganizationDialog
+        open={showOrgDialog}
+        onClose={() => setShowOrgDialog(false)}
+      />
+    </>
   );
-}
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <AuthProvider>
+        <OrganizationProvider>
+          <AppContent />
+        </OrganizationProvider>
+      </AuthProvider>
+    </Router>
+  );
+};
 
 export default App;

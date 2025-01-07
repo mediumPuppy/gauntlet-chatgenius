@@ -5,15 +5,17 @@ interface Channel {
   name: string;
   is_dm: boolean;
   created_at: string;
+  organization_id: string;
 }
 
 interface CreateChannelData {
   name: string;
   is_dm?: boolean;
+  organization_id: string;
 }
 
-export async function getChannels(token: string): Promise<Channel[]> {
-  const response = await fetch(`${API_URL}/channels/me`, {
+export async function getChannels(token: string, organizationId: string): Promise<Channel[]> {
+  const response = await fetch(`${API_URL}/channels/me?organization_id=${organizationId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -28,8 +30,8 @@ export async function getChannels(token: string): Promise<Channel[]> {
   return channels.filter((channel: Channel) => !channel.is_dm);
 }
 
-export async function getAllChannels(token: string): Promise<Channel[]> {
-  const response = await fetch(`${API_URL}/channels`, {
+export async function getAllChannels(token: string, organizationId: string): Promise<Channel[]> {
+  const response = await fetch(`${API_URL}/channels?organization_id=${organizationId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }

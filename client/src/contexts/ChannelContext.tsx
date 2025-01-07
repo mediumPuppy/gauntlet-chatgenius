@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { useAuth } from './AuthContext';
+import { useOrganization } from './OrganizationContext';
 import { getChannels } from '../services/channel';
 
 interface Channel {
@@ -12,7 +13,7 @@ interface Channel {
 interface ChannelContextType {
   channels: Channel[];
   currentChannel: Channel | null;
-  setCurrentChannel: (channel: Channel) => void;
+  setCurrentChannel: (channel: Channel | null) => void;
   isLoading: boolean;
   error: string | null;
   refreshChannels: () => Promise<void>;
@@ -26,40 +27,49 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { token } = useAuth();
+  const { currentOrganization } = useOrganization();
+  const prevOrgIdRef = useRef<string | null>(null);
+
+  // Reset state when organization changes, but keep old data until new data arrives
+  useEffect(() => {
+    if (currentOrganization?.id !== prevOrgIdRef.current) {
+      // Immediately clear state when org changes
+      setChannels([]);
+      setCurrentChannel(null);
+      setIsLoading(true);
+      prevOrgIdRef.current = currentOrganization?.id || null;
+    }
+  }, [currentOrganization?.id]);
 
   const fetchChannels = useCallback(async () => {
-    if (!token) return;
-    
+    if (!token || !currentOrganization) {
+      setChannels([]);
+      setCurrentChannel(null);
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const data = await getChannels(token);
-      setChannels(data);
+      const data = await getChannels(token, currentOrganization.id);
+      // Only update if we're still on the same organization
+      if (currentOrganization.id === prevOrgIdRef.current) {
+        setChannels(data);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch channels');
       console.error('Failed to fetch channels:', err);
     } finally {
-      setIsLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    if (!currentChannel && channels.length > 0) {
-      setCurrentChannel(channels[0]);
-      return;
-    }
-    
-    if (currentChannel) {
-      const updatedCurrentChannel = channels.find(c => c.id === currentChannel.id);
-      if (updatedCurrentChannel) {
-        setCurrentChannel(updatedCurrentChannel);
+      if (currentOrganization.id === prevOrgIdRef.current) {
+        setIsLoading(false);
       }
     }
-  }, [channels, currentChannel]);
+  }, [token, currentOrganization]);
 
   useEffect(() => {
-    if (token) {
+    if (token && currentOrganization) {
       fetchChannels();
     }
-  }, [token, fetchChannels]);
+  }, [token, currentOrganization, fetchChannels]);
 
   const refreshChannels = async () => {
     setIsLoading(true);
@@ -81,7 +91,7 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
     </ChannelContext.Provider>
   );
 }
-
+// eslint-disable-next-line react-refresh/only-export-components
 export function useChannels() {
   const context = useContext(ChannelContext);
   if (!context) {

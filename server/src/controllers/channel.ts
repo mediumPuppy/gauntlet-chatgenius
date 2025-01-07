@@ -4,15 +4,15 @@ import { channelQueries } from '../models/channel';
 export const channelController = {
   createChannel: (async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name } = req.body;
+      const { name, organization_id } = req.body;
       const userId = req.user?.id;
 
-      if (!name || !userId) {
-        res.status(400).json({ error: 'Name is required' });
+      if (!name || !userId || !organization_id) {
+        res.status(400).json({ error: 'Name and organization_id are required' });
         return;
       }
 
-      const channel = await channelQueries.createChannel(name);
+      const channel = await channelQueries.createChannel(name, organization_id);
       await channelQueries.addMember(channel.id, userId);
 
       res.status(201).json(channel);
@@ -24,7 +24,14 @@ export const channelController = {
 
   getChannels: (async (req: Request, res: Response): Promise<void> => {
     try {
-      const channels = await channelQueries.listChannels();
+      const { organization_id } = req.query;
+      
+      if (!organization_id || typeof organization_id !== 'string') {
+        res.status(400).json({ error: 'Organization ID is required' });
+        return;
+      }
+
+      const channels = await channelQueries.listOrganizationChannels(organization_id);
       res.json(channels);
     } catch (error) {
       console.error('Error getting channels:', error);
@@ -77,13 +84,14 @@ export const channelController = {
   getUserChannels: (async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
+      const { organization_id } = req.query;
 
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
+      if (!userId || !organization_id || typeof organization_id !== 'string') {
+        res.status(400).json({ error: 'Organization ID is required' });
         return;
       }
 
-      const channels = await channelQueries.getUserChannels(userId);
+      const channels = await channelQueries.getUserChannels(userId, organization_id);
       res.json(channels);
     } catch (error) {
       console.error('Error getting user channels:', error);
@@ -101,7 +109,7 @@ export const channelController = {
         return;
       }
 
-      const channel = await channelQueries.createDM([userId, targetUserId]);
+      const channel = await channelQueries.createDM([userId, targetUserId], req.body.organization_id);
       res.status(201).json(channel);
     } catch (error) {
       console.error('Error creating DM:', error);

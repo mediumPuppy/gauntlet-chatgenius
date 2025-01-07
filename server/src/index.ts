@@ -8,6 +8,7 @@ import channelRoutes from './routes/channel';
 import userRoutes from './routes/user';
 import messageRoutes from './routes/message';
 import dmRoutes from './routes/dm';
+import organizationRoutes from './routes/organization';
 import { WebSocketHandler } from './websocket/handler';
 import { WebSocketClient } from './websocket/types';
 
@@ -45,6 +46,7 @@ app.use('/api/channels', channelRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/dm', dmRoutes);
+app.use('/api/organizations', organizationRoutes);
 
 // Basic route
 app.get('/', (req: Request, res: Response) => {

@@ -1,0 +1,153 @@
+import express, { Request, Response } from 'express';
+import { authenticateToken } from '../middleware/auth';
+import pool from '../config/db';
+
+const router = express.Router();
+
+// Get organizations for current user
+router.get('/user', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const organizations = await pool.query(
+      `SELECT o.* 
+       FROM organizations o
+       JOIN organization_members om ON o.id = om.organization_id
+       WHERE om.user_id = $1`,
+      [userId]
+    );
+
+    res.json(organizations.rows);
+  } catch (error) {
+    console.error('Error fetching organizations:', error);
+    res.status(500).json({ error: 'Failed to fetch organizations' });
+  }
+});
+
+// Create new organization
+router.post('/', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.body;
+    const userId = req.user?.id;
+
+    if (!name) {
+      res.status(400).json({ error: 'Organization name is required' });
+      return;
+    }
+
+    // Start a transaction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Create organization
+      const orgResult = await client.query(
+        `INSERT INTO organizations (name, created_by, created_at)
+         VALUES ($1, $2, NOW())
+         RETURNING *`,
+        [name, userId]
+      );
+
+      // Add creator as member with 'owner' role
+      await client.query(
+        `INSERT INTO organization_members (organization_id, user_id, role)
+         VALUES ($1, $2, 'owner')`,
+        [orgResult.rows[0].id, userId]
+      );
+
+      await client.query('COMMIT');
+      res.status(201).json(orgResult.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error creating organization:', error);
+    res.status(500).json({ error: 'Failed to create organization' });
+  }
+});
+
+// Get organization role for current user
+router.get('/:organizationId/role', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { organizationId } = req.params;
+    const userId = req.user?.id;
+
+    const roleResult = await pool.query(
+      `SELECT role
+       FROM organization_members
+       WHERE organization_id = $1 AND user_id = $2`,
+      [organizationId, userId]
+    );
+
+    if (roleResult.rows.length === 0) {
+      res.status(404).json({ error: 'User is not a member of this organization' });
+      return;
+    }
+
+    res.json({ role: roleResult.rows[0].role });
+  } catch (error) {
+    console.error('Error fetching user role:', error);
+    res.status(500).json({ error: 'Failed to fetch user role' });
+  }
+});
+
+// Join organization with invite code
+router.post('/join', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { inviteCode } = req.body;
+    const userId = req.user?.id;
+
+    if (!inviteCode) {
+      res.status(400).json({ error: 'Invite code is required' });
+      return;
+    }
+
+    // Verify invite code and get organization ID
+    const inviteResult = await pool.query(
+      `SELECT organization_id, expires_at
+       FROM organization_invites
+       WHERE code = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
+      [inviteCode]
+    );
+
+    if (inviteResult.rows.length === 0) {
+      res.status(404).json({ error: 'Invalid or expired invite code' });
+      return;
+    }
+
+    const organizationId = inviteResult.rows[0].organization_id;
+
+    // Check if user is already a member
+    const membershipCheck = await pool.query(
+      `SELECT 1 FROM organization_members
+       WHERE organization_id = $1 AND user_id = $2`,
+      [organizationId, userId]
+    );
+
+    if (membershipCheck.rows.length > 0) {
+      res.status(400).json({ error: 'You are already a member of this organization' });
+      return;
+    }
+
+    // Add user to organization with 'member' role
+    await pool.query(
+      `INSERT INTO organization_members (organization_id, user_id, role)
+       VALUES ($1, $2, 'member')`,
+      [organizationId, userId]
+    );
+
+    res.status(200).json({ message: 'Successfully joined organization' });
+  } catch (error) {
+    console.error('Error joining organization:', error);
+    res.status(500).json({ error: 'Failed to join organization' });
+  }
+});
+
+export default router; 

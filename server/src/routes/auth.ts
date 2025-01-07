@@ -35,4 +35,10 @@ router.post('/signup', validateSignup, handleSignup);
 router.post('/login', validateLogin, handleLogin);
 router.get('/me', authenticateToken, handleMe);
 
+// Add validation endpoint
+router.get('/validate', authenticateToken, (req, res) => {
+  // If we get here, the token is valid (authenticateToken middleware validated it)
+  res.status(200).json({ valid: true });
+});
+
 export default router; 
