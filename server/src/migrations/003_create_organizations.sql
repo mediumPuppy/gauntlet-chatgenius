@@ -20,10 +20,9 @@ CREATE TABLE organization_members (
 CREATE TABLE organization_invites (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
-    email VARCHAR(255) NOT NULL,
     invited_by UUID REFERENCES users(id),
-    token VARCHAR(255) UNIQUE NOT NULL,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    code VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     accepted_at TIMESTAMP WITH TIME ZONE
 );
@@ -33,5 +32,5 @@ ALTER TABLE channels ADD COLUMN organization_id UUID REFERENCES organizations(id
 
 -- Create index for faster lookups
 CREATE INDEX idx_org_members_user ON organization_members(user_id);
-CREATE INDEX idx_org_invites_token ON organization_invites(token);
+CREATE INDEX idx_org_invites_code ON organization_invites(code);
 CREATE INDEX idx_channels_org ON channels(organization_id); 

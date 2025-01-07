@@ -12,7 +12,8 @@ router.use(authenticateToken);
 router.get('/search',
   validateRequest({
     query: {
-      q: { type: 'string', required: true }
+      q: { type: 'string', required: true },
+      organization_id: { type: 'string', required: true }
     }
   }),
   userController.searchUsers

@@ -31,16 +31,6 @@ router.get('/:id', channelController.getChannel as RequestHandler);
 // Join a channel
 router.post('/:id/join', channelController.joinChannel as RequestHandler);
 
-// Create a DM channel
-router.post('/dm', 
-  validateRequest({
-    body: {
-      targetUserId: { type: 'string', required: true }
-    }
-  }),
-  channelController.createDM as RequestHandler
-);
-
 // Message routes
 router.get('/:channelId/messages', getMessages as RequestHandler);
 router.post('/:channelId/messages',

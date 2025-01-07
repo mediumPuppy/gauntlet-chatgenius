@@ -1,25 +1,30 @@
 import { Request, Response } from 'express';
-import pool from '../config/database';
 import { v4 as uuidv4 } from 'uuid';
+import pool from '../config/database';
+import { AuthRequest } from '../middleware/auth';
 
 interface Message {
   id: string;
   content: string;
   user_id: string;
-  username: string;
-  created_at: Date;
   channel_id?: string;
   dm_id?: string;
   sender_name: string;
   timestamp: Date;
+  created_at: Date;
 }
 
-export const createMessage = async (req: Request, res: Response): Promise<void> => {
+export const createMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   const { content, channelId, dmId } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  if (!content) {
+    res.status(400).json({ error: 'Message content is required' });
     return;
   }
 
@@ -31,8 +36,9 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
          WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
         [dmId, userId]
       );
+      
       if (dmCheck.rows.length === 0) {
-        res.status(403).json({ error: 'Not authorized' });
+        res.status(403).json({ error: 'Not authorized to send messages in this DM' });
         return;
       }
     } else if (channelId) {
@@ -41,8 +47,9 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
         'SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2',
         [channelId, userId]
       );
+      
       if (channelCheck.rows.length === 0) {
-        res.status(403).json({ error: 'Not authorized' });
+        res.status(403).json({ error: 'Not authorized to send messages in this channel' });
         return;
       }
     } else {
@@ -50,22 +57,28 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    const messageId = uuidv4();
     const message = await pool.query(
-      `INSERT INTO messages (id, content, user_id, channel_id, dm_id) 
-       VALUES ($1, $2, $3, $4, $5) 
+      `INSERT INTO messages (id, content, user_id, channel_id, dm_id, created_at) 
+       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [uuidv4(), content, userId, channelId, dmId]
+      [messageId, content, userId, channelId, dmId]
     );
 
-    // Get sender info for the response
+    // Get sender info
     const sender = await pool.query(
       'SELECT username FROM users WHERE id = $1',
       [userId]
     );
 
     const response = {
-      ...message.rows[0],
-      senderName: sender.rows[0].username
+      id: message.rows[0].id,
+      content: message.rows[0].content,
+      userId: message.rows[0].user_id,
+      channelId: message.rows[0].channel_id,
+      dmId: message.rows[0].dm_id,
+      senderName: sender.rows[0].username,
+      timestamp: message.rows[0].created_at
     };
 
     res.status(201).json(response);
@@ -75,7 +88,7 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-export const getMessages = async (req: Request, res: Response): Promise<void> => {
+export const getMessages = async (req: AuthRequest, res: Response): Promise<void> => {
   const { channelId, dmId } = req.query;
   const userId = req.user?.id;
 
@@ -96,8 +109,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
       messages = await pool.query(
         `SELECT 
           m.*,
-          u.username as sender_name,
-          m.created_at as timestamp
+          u.username as sender_name
          FROM messages m
          JOIN users u ON m.user_id = u.id
          WHERE m.dm_id = $1
@@ -115,8 +127,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
       messages = await pool.query(
         `SELECT 
           m.*,
-          u.username as sender_name,
-          m.created_at as timestamp
+          u.username as sender_name
          FROM messages m
          JOIN users u ON m.user_id = u.id
          WHERE m.channel_id = $1
@@ -131,7 +142,6 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
       );
     }
 
-    // Transform the messages to match the client's expected format
     const formattedMessages = messages.rows.map((msg: Message) => ({
       id: msg.id,
       content: msg.content,
@@ -139,10 +149,10 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
       channelId: msg.channel_id,
       dmId: msg.dm_id,
       senderName: msg.sender_name,
-      timestamp: new Date(msg.timestamp).getTime()
+      timestamp: msg.created_at
     }));
 
-    res.json(formattedMessages);
+    res.json(formattedMessages.reverse()); // Return in chronological order
   } catch (error) {
     console.error('Failed to get messages:', error);
     res.status(500).json({ error: 'Failed to get messages' });
