@@ -7,14 +7,20 @@ import { OrganizationSwitcher } from '../components/organization/OrganizationSwi
 import { useAuth } from '../contexts/AuthContext';
 import { useChannels } from '../contexts/ChannelContext';
 import { MessageProvider } from '../contexts/MessageContext';
+import { ConfirmModal } from '../components/common/ConfirmModal';
 
 const ChatPageContent: React.FC = () => {
   const { user, logout } = useAuth();
   const { currentChannel } = useChannels();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
   };
 
   return (
@@ -33,7 +39,7 @@ const ChatPageContent: React.FC = () => {
         <div className="flex-1" />
         <div className="flex items-center space-x-4">
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="text-white hover:text-teal-200 transition-colors text-sm px-3 py-1 rounded border border-white/20 hover:border-teal-200"
           >
             Logout
@@ -77,6 +83,13 @@ const ChatPageContent: React.FC = () => {
           )}
         </div>
       </main>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={logout}
+        action="logout"
+      />
     </div>
   );
 };
