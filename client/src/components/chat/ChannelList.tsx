@@ -20,7 +20,11 @@ interface DM {
   created_at: string;
 }
 
-export function ChannelList() {
+interface ChannelListProps {
+  onChannelSelect?: () => void;
+}
+
+export function ChannelList({ onChannelSelect }: ChannelListProps) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [dms, setDMs] = useState<DM[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +75,7 @@ export function ChannelList() {
             <li key={channel.id}>
               <Link
                 to={`/chat/${channel.id}`}
+                onClick={onChannelSelect}
                 className={`px-4 py-1.5 flex items-center text-base ${
                   channelId === channel.id ? 'bg-primary-600 text-white' : 'text-primary-100 hover:bg-primary-600'
                 }`}
@@ -103,6 +108,7 @@ export function ChannelList() {
             <li key={dm.id}>
               <Link
                 to={`/chat/dm/${dm.id}`}
+                onClick={onChannelSelect}
                 className={`px-4 py-1.5 flex items-center text-base ${
                   channelId === dm.id ? 'bg-primary-600 text-white' : 'text-primary-100 hover:bg-primary-600'
                 }`}
