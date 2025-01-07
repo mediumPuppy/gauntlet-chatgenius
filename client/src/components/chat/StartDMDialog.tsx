@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
+import { usePresence } from '../../contexts/PresenceContext';
 import { searchUsers, startDM } from '../../services/user';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../../types/user';
+import { UserAvatar } from '../common/UserAvatar';
 
 interface StartDMDialogProps {
   isOpen: boolean;
@@ -18,6 +20,7 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
   const { token, user: currentUser } = useAuth();
   const { currentOrganization } = useOrganization();
   const navigate = useNavigate();
+  const { isUserOnline } = usePresence();
 
   useEffect(() => {
     if (!searchQuery.trim() || !isOpen || !currentOrganization) {
@@ -105,10 +108,12 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
                     onClick={() => handleStartDM(user.id)}
                   >
                     <div className="flex items-center">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 mr-3">
-                        {user.username[0].toUpperCase()}
-                      </div>
-                      <div>
+                      <UserAvatar 
+                        username={user.username} 
+                        isOnline={isUserOnline(user.id)}
+                        size="sm"
+                      />
+                      <div className="ml-3">
                         <div className="font-medium">{user.username}</div>
                         <div className="text-sm text-gray-500">{user.email}</div>
                       </div>

@@ -1,42 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { OrganizationProvider, useOrganization } from './contexts/OrganizationContext';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { OrganizationProvider } from './contexts/OrganizationContext';
+import { WebSocketProvider } from './contexts/WebSocketContext';
+import { PresenceProvider } from './contexts/PresenceContext';
 import { AppRoutes } from './AppRoutes';
-import { OrganizationDialog } from './components/organization/OrganizationDialog';
 
-const AppContent: React.FC = () => {
-  const { user } = useAuth();
-  const { currentOrganization, organizations } = useOrganization();
-  const [showOrgDialog, setShowOrgDialog] = useState(false);
-
-  useEffect(() => {
-    if (user && organizations.length > 0 && !currentOrganization) {
-      setShowOrgDialog(true);
-    }
-  }, [user, organizations, currentOrganization]);
-
+function App() {
   return (
-    <>
-      <AppRoutes />
-      <OrganizationDialog
-        open={showOrgDialog}
-        onClose={() => setShowOrgDialog(false)}
-      />
-    </>
-  );
-};
-
-const App: React.FC = () => {
-  return (
-    <Router>
+    <BrowserRouter>
       <AuthProvider>
         <OrganizationProvider>
-          <AppContent />
+          <WebSocketProvider>
+            <PresenceProvider>
+              <AppRoutes />
+            </PresenceProvider>
+          </WebSocketProvider>
         </OrganizationProvider>
       </AuthProvider>
-    </Router>
+    </BrowserRouter>
   );
-};
+}
 
 export default App;

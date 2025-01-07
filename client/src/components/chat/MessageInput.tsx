@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useMessages } from '../../contexts/MessageContext';
 import { useChannels } from '../../contexts/ChannelContext';
 import { useParams } from 'react-router-dom';
@@ -8,7 +8,8 @@ export function MessageInput() {
   const { sendMessage, sendTyping } = useMessages();
   const { currentChannel } = useChannels();
   const { dmId } = useParams<{ dmId?: string }>();
-  let typingTimeout: ReturnType<typeof setTimeout>;
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const lastTypingRef = useRef<number>(0);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -19,13 +20,28 @@ export function MessageInput() {
     setNewMessage('');
   };
 
-  const handleTyping = () => {
-    clearTimeout(typingTimeout);
+  const handleTyping = useCallback(() => {
+    const now = Date.now();
+    // Only send typing event if it's been more than 2 seconds since the last one
+    // AND we have a valid channel/DM
+    if ((!currentChannel && !dmId) || now - lastTypingRef.current < 2000) {
+      return;
+    }
+
+    lastTypingRef.current = now;
     sendTyping();
-    typingTimeout = setTimeout(() => {
-      // Typing stopped
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout
+    typingTimeoutRef.current = setTimeout(() => {
+      typingTimeoutRef.current = undefined;
+      lastTypingRef.current = 0; // Reset last typing time when typing stops
     }, 3000);
-  };
+  }, [sendTyping, currentChannel, dmId]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Check for Cmd+Enter (Mac) or Ctrl+Enter (Windows/Linux)
@@ -72,7 +88,7 @@ export function MessageInput() {
             className="px-4 py-2 text-primary-600 hover:text-primary-700 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
             </svg>
           </button>
         </div>

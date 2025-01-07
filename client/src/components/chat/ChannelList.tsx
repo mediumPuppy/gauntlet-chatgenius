@@ -6,6 +6,8 @@ import { useChannels } from '../../contexts/ChannelContext';
 import { getDMs } from '../../services/user';
 import StartDMDialog from './StartDMDialog';
 import ChannelDialog from './ChannelDialog';
+import { usePresence } from '../../contexts/PresenceContext';
+import { UserAvatar } from '../common/UserAvatar';
 
 interface Channel {
   id: string;
@@ -36,6 +38,7 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
   const [isDMDialogOpen, setIsDMDialogOpen] = useState(false);
   const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false);
   const prevOrgIdRef = useRef<string | null>(null);
+  const { isUserOnline } = usePresence();
 
   // Keep showing old channels until new ones load
   useEffect(() => {
@@ -184,8 +187,12 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
                       : 'text-primary-100 hover:bg-primary-600/50 hover:text-white'
                   }`}
                 >
-                  <div className="w-2 h-2 rounded-full bg-primary-300 mr-2" />
-                  <span className="truncate">{dm.other_username}</span>
+                  <UserAvatar 
+                    username={dm.other_username}
+                    isOnline={isUserOnline(dm.other_user_id)}
+                    size="sm"
+                  />
+                  <span className="ml-2 truncate">{dm.other_username}</span>
                 </Link>
               </li>
             ))}

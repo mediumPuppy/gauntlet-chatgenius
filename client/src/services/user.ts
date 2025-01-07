@@ -49,4 +49,32 @@ export const searchUsers = async (token: string, query: string, organizationId: 
   }
   
   return response.json();
+};
+
+export const getUserPresence = async (token: string, userId: string) => {
+  const response = await fetch(`${API_URL}/users/${userId}/presence`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to get user presence');
+  }
+  
+  return response.json();
+};
+
+export const getOrganizationMemberPresence = async (token: string, organizationId: string) => {
+  const response = await fetch(`${API_URL}/users/organization/${organizationId}/presence`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to get organization member presence');
+  }
+  
+  return response.json();
 }; 

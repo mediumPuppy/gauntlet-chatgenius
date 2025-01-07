@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useParams } from 'react-router-dom';
 import { MessageList } from '../components/chat/MessageList';
 import { MessageInput } from '../components/chat/MessageInput';
@@ -9,6 +9,8 @@ import { useChannels } from '../contexts/ChannelContext';
 import { MessageProvider } from '../contexts/MessageContext';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 import { API_URL } from '../services/config';
+import { usePresence } from '../contexts/PresenceContext';
+import { UserAvatar } from '../components/common/UserAvatar';
 
 interface DMInfo {
   id: string;
@@ -16,72 +18,93 @@ interface DMInfo {
   other_user_id: string;
 }
 
-const ChatPageContent: React.FC = () => {
+const ChatPageContent: React.FC = memo(() => {
   const { logout } = useAuth();
   const { currentChannel } = useChannels();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { dmId } = useParams<{ dmId?: string }>();
   const [currentDM, setCurrentDM] = useState<DMInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { token } = useAuth();
+  const { isUserOnline } = usePresence();
 
-  console.log('ChatPageContent render:', { dmId, currentDM, currentChannel });
+  const fetchDMInfo = useCallback(async (id: string) => {
+    if (!token) {
+      console.log('No token available');
+      return;
+    }
+
+    try {
+      console.log('Fetching DM info for:', id);
+      const response = await fetch(`${API_URL}/dm/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('DM fetch failed:', response.status, errorText);
+        throw new Error(`Failed to fetch DM info: ${errorText}`);
+      }
+
+      const dmInfo = await response.json();
+      console.log('Fetched DM info:', dmInfo);
+      setCurrentDM(dmInfo);
+    } catch (error) {
+      console.error('Error fetching DM info:', error);
+    }
+  }, [token]);
 
   useEffect(() => {
-    const fetchDMInfo = async () => {
-      if (!dmId || !token) {
-        console.log('Missing dmId or token:', { dmId, hasToken: !!token });
-        return;
-      }
+    if (!dmId || isLoading) return;
 
-      try {
-        console.log('Fetching DM info for:', dmId);
-        const response = await fetch(`${API_URL}/dm/${dmId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+    setIsLoading(true);
+    fetchDMInfo(dmId).finally(() => setIsLoading(false));
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('DM fetch failed:', response.status, errorText);
-          throw new Error(`Failed to fetch DM info: ${errorText}`);
-        }
-
-        const dmInfo = await response.json();
-        console.log('Fetched DM info:', dmInfo);
-        setCurrentDM(dmInfo);
-      } catch (error) {
-        console.error('Error fetching DM info:', error);
-      }
-    };
-
-    if (dmId) {
-      console.log('DM ID changed, fetching info:', dmId);
-      fetchDMInfo();
-    } else {
-      console.log('No DM ID, clearing currentDM');
+    return () => {
+      // Cleanup effect - clear DM info when unmounting or changing DMs
       setCurrentDM(null);
-    }
-  }, [dmId, token]);
+    };
+  }, [dmId, fetchDMInfo]);
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen(prev => !prev);
+  }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setShowLogoutConfirm(true);
-  };
+  }, []);
 
-  const getHeaderTitle = () => {
+  const renderHeader = useMemo(() => {
     if (currentDM) {
-      return `Chat with ${currentDM.other_username}`;
+      return (
+        <div className="flex items-center">
+          <UserAvatar 
+            username={currentDM.other_username}
+            isOnline={isUserOnline(currentDM.other_user_id)}
+            size="sm"
+          />
+          <div className="ml-2">
+            <div className="font-medium">{currentDM.other_username}</div>
+            <div className="text-sm opacity-75">
+              {isUserOnline(currentDM.other_user_id) ? 'Online' : 'Offline'}
+            </div>
+          </div>
+        </div>
+      );
     }
     if (currentChannel) {
-      return `#${currentChannel.name}`;
+      return (
+        <div className="flex items-center">
+          <span className="text-xl mr-2">#</span>
+          <span>{currentChannel.name}</span>
+        </div>
+      );
     }
     return 'Chat';
-  };
+  }, [currentDM, currentChannel, isUserOnline]);
 
   const shouldShowWelcome = !dmId && !currentChannel;
   const shouldShowChat = Boolean(dmId) || Boolean(currentChannel);
@@ -99,7 +122,9 @@ const ChatPageContent: React.FC = () => {
           </svg>
         </button>
         <OrganizationSwitcher />
-        <div className="flex-1 text-white font-medium ml-4">{getHeaderTitle()}</div>
+        <div className="flex-1 text-white font-medium ml-4">
+          {renderHeader}
+        </div>
         <div className="flex items-center space-x-4">
           <button
             onClick={handleLogout}
@@ -159,12 +184,12 @@ const ChatPageContent: React.FC = () => {
       />
     </div>
   );
-};
+});
 
-const ChatPage: React.FC = () => {
+ChatPageContent.displayName = 'ChatPageContent';
+
+const ChatPage: React.FC = memo(() => {
   const { channelId, dmId } = useParams<{ channelId?: string; dmId?: string }>();
-
-  console.log('ChatPage params:', { channelId, dmId });
 
   // If no channel or DM is selected in the URL, show the base layout without messages
   if (!channelId && !dmId) {
@@ -177,6 +202,8 @@ const ChatPage: React.FC = () => {
       <ChatPageContent />
     </MessageProvider>
   );
-};
+});
+
+ChatPage.displayName = 'ChatPage';
 
 export default ChatPage;
