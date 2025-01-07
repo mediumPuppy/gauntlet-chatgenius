@@ -1,80 +1,60 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { OrganizationDialog } from './OrganizationDialog';
 
 export const OrganizationSwitcher: React.FC = () => {
-  const { currentOrganization, organizations, setCurrentOrganization } = useOrganization();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { currentOrganization, userRole } = useOrganization();
   const [showOrgDialog, setShowOrgDialog] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
-  const handleOrgSelect = (orgId: string) => {
-    const org = organizations.find(o => o.id === orgId);
-    if (org) {
-      setCurrentOrganization(org);
-      localStorage.setItem('currentOrganizationId', org.id);
-    }
-    setIsMenuOpen(false);
-  };
-
-  const handleManageOrgs = () => {
-    setIsMenuOpen(false);
-    setShowOrgDialog(true);
-  };
+  const isAdmin = userRole === 'owner' || userRole === 'admin';
 
   if (!currentOrganization) return null;
 
   return (
     <div className="relative">
       <button
-        onClick={toggleMenu}
-        className="flex flex-col items-start px-4 py-2 text-white hover:bg-primary-600 rounded-md"
+        onClick={() => setShowDropdown(!showDropdown)}
+        className="flex items-center space-x-2 px-4 py-2 text-white hover:bg-primary-600 rounded-md transition-colors"
       >
-        <span className="text-sm opacity-70">Organization</span>
-        <span className="font-medium truncate max-w-[200px]">
-          {currentOrganization.name}
-        </span>
+        <span>{currentOrganization.name}</span>
+        <svg
+          className={`w-5 h-5 transition-transform ${showDropdown ? 'transform rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
-      
-      {isMenuOpen && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-40"
-            onClick={() => setIsMenuOpen(false)}
-          />
-          
-          {/* Dropdown menu */}
-          <div className="absolute left-0 mt-1 w-64 bg-white rounded-md shadow-lg z-50">
-            <div className="py-1">
-              {organizations.map((org) => (
-                <button
-                  key={org.id}
-                  onClick={() => handleOrgSelect(org.id)}
-                  className={`w-full text-left px-4 py-2 text-sm ${
-                    org.id === currentOrganization.id
-                      ? 'bg-gray-100 text-gray-900'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {org.name}
-                </button>
-              ))}
-              
-              <div className="border-t border-gray-100 my-1" />
-              
-              <button
-                onClick={handleManageOrgs}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+
+      {showDropdown && (
+        <div className="absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+          <div className="py-1" role="menu" aria-orientation="vertical">
+            <button
+              onClick={() => {
+                setShowOrgDialog(true);
+                setShowDropdown(false);
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              role="menuitem"
+            >
+              Switch Organization
+            </button>
+            
+            {isAdmin && (
+              <Link
+                to="/organization/settings"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                role="menuitem"
+                onClick={() => setShowDropdown(false)}
               >
-                Manage Organizations
-              </button>
-            </div>
+                Organization Settings
+              </Link>
+            )}
           </div>
-        </>
+        </div>
       )}
 
       <OrganizationDialog
@@ -83,4 +63,4 @@ export const OrganizationSwitcher: React.FC = () => {
       />
     </div>
   );
-}; 
+} 

@@ -86,7 +86,7 @@ export function MessageList() {
     <div 
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto p-4"
+      className="flex-1 overflow-y-auto p-4 lg:p-0 lg:ml-0"
     >
       {!currentChannel ? (
         <div className="flex flex-col items-center justify-center h-full text-gray-500">

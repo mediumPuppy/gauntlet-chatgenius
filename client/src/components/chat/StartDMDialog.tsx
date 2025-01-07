@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOrganization } from '../../contexts/OrganizationContext';
 import { searchUsers, startDM } from '../../services/user';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../../types/user';
@@ -13,39 +14,45 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { token, user: currentUser } = useAuth();
+  const { currentOrganization } = useOrganization();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!searchQuery.trim() || !isOpen) {
+    if (!searchQuery.trim() || !isOpen || !currentOrganization) {
       setUsers([]);
+      setError(null);
       return;
     }
 
     const searchTimeout = setTimeout(async () => {
       try {
         setLoading(true);
-        const results = await searchUsers(token!, searchQuery);
+        setError(null);
+        const results = await searchUsers(token!, searchQuery, currentOrganization.id);
         setUsers(results.filter((user: User) => user.id !== currentUser?.id));
       } catch (error) {
         console.error('Failed to search users:', error);
+        setError('Failed to search users. Please try again.');
       } finally {
         setLoading(false);
       }
     }, 300);
 
     return () => clearTimeout(searchTimeout);
-  }, [searchQuery, token, isOpen, currentUser]);
+  }, [searchQuery, token, isOpen, currentUser, currentOrganization]);
 
   const handleStartDM = async (targetUserId: string) => {
     try {
       setLoading(true);
-      const { dmId } = await startDM(token!, targetUserId);
+      setError(null);
+      const result = await startDM(token!, targetUserId);
       onClose();
-      navigate(`/chat/dm/${dmId}`);
+      navigate(`/chat/dm/${result.id}`);
     } catch (error) {
       console.error('Failed to start DM:', error);
-    } finally {
+      setError('Failed to start conversation. Please try again.');
       setLoading(false);
     }
   };
@@ -57,6 +64,15 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md relative">
         <div className="p-4 border-b">
           <h2 className="text-lg font-semibold">Start a Direct Message</h2>
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          >
+            <span className="sr-only">Close</span>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
         
         <div className="p-4">
@@ -69,9 +85,17 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
             autoFocus
           />
           
+          {error && (
+            <div className="mt-2 text-red-500 text-sm">
+              {error}
+            </div>
+          )}
+          
           <div className="mt-4 max-h-64 overflow-y-auto">
             {loading ? (
-              <div className="text-center py-4">Loading...</div>
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+              </div>
             ) : users.length > 0 ? (
               <ul className="space-y-2">
                 {users.map((user) => (
@@ -94,17 +118,12 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
               </ul>
             ) : searchQuery ? (
               <div className="text-center py-4 text-gray-500">No users found</div>
-            ) : null}
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                Start typing to search for users
+              </div>
+            )}
           </div>
-        </div>
-        
-        <div className="p-4 border-t flex justify-end space-x-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
-            Cancel
-          </button>
         </div>
       </div>
     </div>

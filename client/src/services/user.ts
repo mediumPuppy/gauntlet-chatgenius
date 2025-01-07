@@ -37,8 +37,8 @@ export const getDMs = async (token: string) => {
   return response.json();
 };
 
-export const searchUsers = async (token: string, query: string) => {
-  const response = await fetch(`${API_URL}/users/search?q=${encodeURIComponent(query)}`, {
+export const searchUsers = async (token: string, query: string, organizationId: string) => {
+  const response = await fetch(`${API_URL}/users/search?q=${encodeURIComponent(query)}&organization_id=${encodeURIComponent(organizationId)}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     },

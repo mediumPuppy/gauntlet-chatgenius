@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ChatPage from './pages/ChatPage';
 import OrganizationOnboardingPage from './pages/OrganizationOnboardingPage';
+import OrganizationSettingsPage from './pages/OrganizationSettingsPage';
 import { ChannelProvider } from './contexts/ChannelContext';
 
 export const AppRoutes: React.FC = () => {
@@ -47,6 +48,18 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             {currentOrganization ? <Navigate to="/chat" replace /> : <OrganizationOnboardingPage />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/organization/settings"
+        element={
+          <ProtectedRoute>
+            {!currentOrganization ? (
+              <Navigate to="/organization-onboarding" replace />
+            ) : (
+              <OrganizationSettingsPage />
+            )}
           </ProtectedRoute>
         }
       />

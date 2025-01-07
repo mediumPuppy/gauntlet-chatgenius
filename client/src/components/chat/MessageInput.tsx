@@ -8,8 +8,8 @@ export function MessageInput() {
   const { currentChannel } = useChannels();
   let typingTimeout: ReturnType<typeof setTimeout>;
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!currentChannel || !newMessage.trim()) return;
 
     sendMessage(newMessage.trim());
@@ -22,6 +22,14 @@ export function MessageInput() {
     typingTimeout = setTimeout(() => {
       // Typing stopped
     }, 3000);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Check for Cmd+Enter (Mac) or Ctrl+Enter (Windows/Linux)
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault(); // Prevent newline
+      handleSendMessage();
+    }
   };
 
   return (
@@ -37,6 +45,7 @@ export function MessageInput() {
               e.target.style.height = 'auto';
               e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
             }}
+            onKeyDown={handleKeyDown}
             placeholder={currentChannel ? `Message ${currentChannel.is_dm ? '' : '#'}${currentChannel.name}` : 'Select a conversation to start messaging'}
             disabled={!currentChannel}
             className="flex-1 bg-transparent outline-none px-3 py-2 resize-none min-h-[2rem] max-h-[10rem] overflow-y-auto"

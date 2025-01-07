@@ -1,0 +1,10 @@
+0787efb invite codes and orgs working or maybe working
+d846cda frontend wrekt, organizations sort of working rip.
+276ac20 updated typing notifications, middle of aws launching.
+4069c41 linting error fixed ...
+60301aa add login page redirect for already logged in peeps, linting errors, confirmation modal, logout button
+40dbade halfway to getting dm working
+a1922af fix mobile and such...frontend issues
+6a5d4fc responsive edits and finishes
+98ead3d add responsive chat screen
+4edb6b7 frontend changes, messages ordered new, channels fixed, add channels by id, almost dm

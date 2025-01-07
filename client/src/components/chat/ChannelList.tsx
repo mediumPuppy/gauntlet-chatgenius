@@ -86,83 +86,111 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
     <div className="flex flex-col h-full relative">
       {/* Loading Overlay */}
       <div 
-        className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
+        className="absolute inset-0 bg-primary-700/50 transition-opacity duration-300 pointer-events-none"
         style={{ opacity: loading || channelsLoading ? 0.7 : 0 }}
       >
         <div className="animate-pulse p-4">
-          <div className="h-6 bg-primary-600/20 rounded w-24 mb-4"></div>
+          <div className="h-6 bg-white/10 rounded w-24 mb-4"></div>
           <div className="space-y-3">
-            <div className="h-8 bg-primary-600/20 rounded"></div>
-            <div className="h-8 bg-primary-600/20 rounded"></div>
-            <div className="h-8 bg-primary-600/20 rounded"></div>
+            <div className="h-8 bg-white/10 rounded"></div>
+            <div className="h-8 bg-white/10 rounded"></div>
+            <div className="h-8 bg-white/10 rounded"></div>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="transition-opacity duration-300" style={{ opacity: loading || channelsLoading ? 0.3 : 1 }}>
+        {/* Organization Name */}
+        <div className="px-4 py-2 flex items-center justify-between border-b border-primary-600">
+          <h1 className="text-white font-bold">brobro org</h1>
+          <button className="text-primary-200">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
         {/* Regular Channels */}
-        <div className="mb-6">
+        <div className="mb-8 mt-6">
           <div className="px-4 mb-2 flex justify-between items-center">
-            <h2 className="text-base font-semibold text-primary-200 uppercase tracking-wider">Channels</h2>
+            <div className="flex items-center">
+              <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider">Channels</h2>
+              <button className="ml-2 text-primary-200 hover:text-white">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
             <button
               onClick={() => setIsChannelDialogOpen(true)}
-              className="w-6 h-6 rounded hover:bg-primary-600 text-primary-200 hover:text-white flex items-center justify-center"
-              title="Channel Options"
+              className="w-6 h-6 rounded hover:bg-primary-600/50 text-primary-200 hover:text-white flex items-center justify-center transition-colors"
+              title="Add Channel"
             >
               <span className="text-xl leading-none">+</span>
             </button>
           </div>
-          <ul className="space-y-1">
+          <ul className="space-y-0.5">
             {localChannels.map(channel => (
               <li key={channel.id}>
                 <Link
                   to={`/chat/${channel.id}`}
                   onClick={onChannelSelect}
-                  className={`px-4 py-1.5 flex items-center text-base ${
-                    channelId === channel.id ? 'bg-primary-600 text-white' : 'text-primary-100 hover:bg-primary-600'
+                  className={`px-4 py-2 flex items-center text-sm transition-colors ${
+                    channelId === channel.id 
+                      ? 'bg-primary-600 text-white' 
+                      : 'text-primary-100 hover:bg-primary-600/50 hover:text-white'
                   }`}
                 >
                   <span className="text-primary-300 mr-2">#</span>
-                  <span>{channel.name}</span>
+                  <span className="truncate">{channel.name}</span>
                 </Link>
               </li>
             ))}
             {localChannels.length === 0 && (
-              <li className="px-4 py-1 text-primary-300 text-sm">No channels yet</li>
+              <li className="px-4 py-2 text-primary-400 text-sm">No channels yet</li>
             )}
           </ul>
         </div>
 
         {/* Direct Messages */}
-        <div className="mb-4">
+        <div className="mb-6">
           <div className="px-4 mb-2 flex justify-between items-center">
-            <h2 className="text-base font-semibold text-primary-200 uppercase tracking-wider">Direct Messages</h2>
+            <div className="flex items-center">
+              <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider">Direct Messages</h2>
+              <button className="ml-2 text-primary-200 hover:text-white">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
             <button
               onClick={() => setIsDMDialogOpen(true)}
-              className="w-6 h-6 rounded hover:bg-primary-600 text-primary-200 hover:text-white flex items-center justify-center"
+              className="w-6 h-6 rounded hover:bg-primary-600/50 text-primary-200 hover:text-white flex items-center justify-center transition-colors"
               title="Start DM"
             >
               <span className="text-xl leading-none">+</span>
             </button>
           </div>
-          <ul className="space-y-1">
+          <ul className="space-y-0.5">
             {dms.map(dm => (
               <li key={dm.id}>
                 <Link
                   to={`/chat/dm/${dm.id}`}
                   onClick={onChannelSelect}
-                  className={`px-4 py-1.5 flex items-center text-base ${
-                    channelId === dm.id ? 'bg-primary-600 text-white' : 'text-primary-100 hover:bg-primary-600'
+                  className={`px-4 py-2 flex items-center text-sm transition-colors ${
+                    channelId === dm.id 
+                      ? 'bg-primary-600 text-white' 
+                      : 'text-primary-100 hover:bg-primary-600/50 hover:text-white'
                   }`}
                 >
                   <div className="w-2 h-2 rounded-full bg-primary-300 mr-2" />
-                  <span>{dm.other_username}</span>
+                  <span className="truncate">{dm.other_username}</span>
                 </Link>
               </li>
             ))}
             {dms.length === 0 && (
-              <li className="px-4 py-1 text-primary-300 text-sm">No direct messages yet</li>
+              <li className="px-4 py-2 text-primary-400 text-sm">No direct messages yet</li>
             )}
           </ul>
         </div>
