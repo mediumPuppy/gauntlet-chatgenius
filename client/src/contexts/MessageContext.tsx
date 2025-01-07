@@ -29,10 +29,7 @@ export function MessageProvider({ children, channelId }: MessageProviderProps) {
 
   // Fetch message history when channel changes
   useEffect(() => {
-    setMessages([]); // Clear current messages
-    setTypingUsers([]);
-
-    if (!channelId || !token) return;
+    let isMounted = true;
 
     const fetchMessageHistory = async () => {
       try {
@@ -45,14 +42,22 @@ export function MessageProvider({ children, channelId }: MessageProviderProps) {
         if (!response.ok) throw new Error('Failed to fetch messages');
         
         const data = await response.json();
-        console.log('Fetched messages:', data); // Add logging
-        setMessages(data);
+        console.log('Fetched messages:', data);
+        
+        if (isMounted) {
+          setMessages(data);
+          setTypingUsers([]);
+        }
       } catch (err) {
         console.error('Error fetching message history:', err);
       }
     };
 
     fetchMessageHistory();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [channelId, token]);
 
   // Handle incoming WebSocket messages

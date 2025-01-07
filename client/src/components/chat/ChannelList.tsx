@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getChannels } from '../../services/channel';
 import { getDMs } from '../../services/user';
 import StartDMDialog from './StartDMDialog';
+import ChannelDialog from './ChannelDialog';
 
 interface Channel {
   id: string;
@@ -24,6 +25,7 @@ export function ChannelList() {
   const [dms, setDMs] = useState<DM[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDMDialogOpen, setIsDMDialogOpen] = useState(false);
+  const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false);
   const { token } = useAuth();
   const { channelId } = useParams();
 
@@ -47,7 +49,7 @@ export function ChannelList() {
   }, [token]);
 
   if (loading) {
-    return <div className="p-4 text-gray-500">Loading...</div>;
+    return <div className="p-4 text-primary-300">Loading...</div>;
   }
 
   return (
@@ -55,11 +57,11 @@ export function ChannelList() {
       {/* Regular Channels */}
       <div className="mb-6">
         <div className="px-4 mb-2 flex justify-between items-center">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Channels</h2>
+          <h2 className="text-base font-semibold text-primary-200 uppercase tracking-wider">Channels</h2>
           <button
-            onClick={() => {/* TODO: Add create channel dialog */}}
-            className="w-5 h-5 rounded hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center"
-            title="Create Channel"
+            onClick={() => setIsChannelDialogOpen(true)}
+            className="w-6 h-6 rounded hover:bg-primary-600 text-primary-200 hover:text-white flex items-center justify-center"
+            title="Channel Options"
           >
             <span className="text-xl leading-none">+</span>
           </button>
@@ -69,17 +71,17 @@ export function ChannelList() {
             <li key={channel.id}>
               <Link
                 to={`/chat/${channel.id}`}
-                className={`px-4 py-1.5 flex items-center ${
-                  channelId === channel.id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'
+                className={`px-4 py-1.5 flex items-center text-base ${
+                  channelId === channel.id ? 'bg-primary-600 text-white' : 'text-primary-100 hover:bg-primary-600'
                 }`}
               >
-                <span className="text-gray-400 mr-2">#</span>
+                <span className="text-primary-300 mr-2">#</span>
                 <span>{channel.name}</span>
               </Link>
             </li>
           ))}
           {channels.length === 0 && (
-            <li className="px-4 py-1 text-gray-500 text-sm">No channels yet</li>
+            <li className="px-4 py-1 text-primary-300 text-sm">No channels yet</li>
           )}
         </ul>
       </div>
@@ -87,10 +89,10 @@ export function ChannelList() {
       {/* Direct Messages */}
       <div className="mb-4">
         <div className="px-4 mb-2 flex justify-between items-center">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Direct Messages</h2>
+          <h2 className="text-base font-semibold text-primary-200 uppercase tracking-wider">Direct Messages</h2>
           <button
             onClick={() => setIsDMDialogOpen(true)}
-            className="w-5 h-5 rounded hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center"
+            className="w-6 h-6 rounded hover:bg-primary-600 text-primary-200 hover:text-white flex items-center justify-center"
             title="Start DM"
           >
             <span className="text-xl leading-none">+</span>
@@ -101,17 +103,17 @@ export function ChannelList() {
             <li key={dm.id}>
               <Link
                 to={`/chat/dm/${dm.id}`}
-                className={`px-4 py-1.5 flex items-center ${
-                  channelId === dm.id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'
+                className={`px-4 py-1.5 flex items-center text-base ${
+                  channelId === dm.id ? 'bg-primary-600 text-white' : 'text-primary-100 hover:bg-primary-600'
                 }`}
               >
-                <div className="w-2 h-2 rounded-full bg-green-500 mr-2" />
+                <div className="w-2 h-2 rounded-full bg-primary-300 mr-2" />
                 <span>{dm.other_username}</span>
               </Link>
             </li>
           ))}
           {dms.length === 0 && (
-            <li className="px-4 py-1 text-gray-500 text-sm">No direct messages yet</li>
+            <li className="px-4 py-1 text-primary-300 text-sm">No direct messages yet</li>
           )}
         </ul>
       </div>
@@ -120,6 +122,11 @@ export function ChannelList() {
         isOpen={isDMDialogOpen}
         onClose={() => setIsDMDialogOpen(false)}
       />
+
+      <ChannelDialog
+        isOpen={isChannelDialogOpen}
+        onClose={() => setIsChannelDialogOpen(false)}
+      />
     </div>
   );
-} 
+}

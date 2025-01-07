@@ -15,20 +15,22 @@ export function useWebSocket(channelId: string) {
 
     // Close existing connection if any
     if (ws.current) {
-      ws.current.close();
+      ws.current.close(1000, 'Reconnecting');
       ws.current = null;
     }
 
     const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}/ws`;
-    ws.current = new WebSocket(wsUrl);
+    const socket = new WebSocket(wsUrl);
+    ws.current = socket;
 
-    ws.current.onopen = () => {
+    socket.onopen = () => {
+      if (socket !== ws.current) return; // Connection was replaced
       setIsConnected(true);
       setError(null);
       reconnectAttempts.current = 0;
       // Send authentication message with channelId
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send(JSON.stringify({ 
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ 
           type: 'auth', 
           token,
           channelId 
@@ -36,7 +38,8 @@ export function useWebSocket(channelId: string) {
       }
     };
 
-    ws.current.onclose = (event) => {
+    socket.onclose = (event) => {
+      if (socket !== ws.current) return; // Connection was replaced
       setIsConnected(false);
       // Don't reconnect if closure was clean and intentional
       if (event.wasClean) {
@@ -51,7 +54,8 @@ export function useWebSocket(channelId: string) {
       setTimeout(connect, delay);
     };
 
-    ws.current.onerror = (error) => {
+    socket.onerror = (error) => {
+      if (socket !== ws.current) return; // Connection was replaced
       console.error('WebSocket error:', error);
       setError('WebSocket connection error');
     };

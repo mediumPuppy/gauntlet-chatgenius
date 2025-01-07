@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { getChannels } from '../services/channel';
 
 interface Channel {
   id: string;
@@ -27,26 +28,27 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
 
   const fetchChannels = async () => {
+    if (!token) return;
+    
     try {
-      const response = await fetch('http://localhost:3000/api/channels', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch channels');
-      }
-
-      const data = await response.json();
+      const data = await getChannels(token);
       setChannels(data);
       
       // Set first channel as current if none selected
       if (!currentChannel && data.length > 0) {
         setCurrentChannel(data[0]);
       }
+      
+      // Update current channel data if it exists in the new channel list
+      if (currentChannel) {
+        const updatedCurrentChannel = data.find(c => c.id === currentChannel.id);
+        if (updatedCurrentChannel) {
+          setCurrentChannel(updatedCurrentChannel);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch channels');
+      console.error('Failed to fetch channels:', err);
     } finally {
       setIsLoading(false);
     }

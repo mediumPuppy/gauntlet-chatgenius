@@ -10,7 +10,6 @@ export default function ChatPage() {
   const { channelId } = useParams();
   const { currentChannel, setCurrentChannel, channels } = useChannels();
 
-  // Update current channel when URL parameter changes
   useEffect(() => {
     if (channelId && channels.length > 0) {
       const channel = channels.find(c => c.id === channelId);
@@ -23,14 +22,14 @@ export default function ChatPage() {
   return (
     <div className="h-screen flex">
       {/* Sidebar */}
-      <div className="w-60 bg-gray-800 flex flex-col">
+      <div className="w-60 bg-primary-700 flex flex-col">
         {/* Workspace header */}
-        <div className="h-12 bg-gray-900 flex items-center px-4">
-          <h1 className="text-white font-bold">ChatGenius</h1>
+        <div className="h-12 bg-primary-600 flex items-center px-4 border-b border-primary-500">
+          <h1 className="text-2xl text-primary-100 font-bold">ChatGenius</h1>
         </div>
         
         {/* Channel list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pt-4">
           <ChannelList />
         </div>
       </div>
@@ -38,9 +37,9 @@ export default function ChatPage() {
       {/* Main content */}
       <div className="flex-1 flex flex-col bg-white">
         {/* Channel header */}
-        <div className="h-12 border-b flex items-center px-4">
-          <h2 className="font-semibold">
-            {currentChannel ? `# ${currentChannel.name}` : 'Select a channel'}
+        <div className="h-12 border-b flex items-center px-4 bg-primary-50">
+          <h2 className="text-lg font-semibold text-primary-900">
+            {currentChannel ? `${currentChannel.is_dm ? '' : '#'}${currentChannel.name}` : 'Select a channel'}
           </h2>
         </div>
 
@@ -50,7 +49,7 @@ export default function ChatPage() {
             <MessageInput />
           </MessageProvider>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-primary-500">
             Select a channel to start messaging
           </div>
         )}

@@ -13,7 +13,7 @@ interface CreateChannelData {
 }
 
 export async function getChannels(token: string): Promise<Channel[]> {
-  const response = await fetch(`${API_URL}/channels`, {
+  const response = await fetch(`${API_URL}/channels/me`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -24,7 +24,24 @@ export async function getChannels(token: string): Promise<Channel[]> {
     throw new Error(error.message || 'Failed to fetch channels');
   }
 
-  return response.json();
+  const channels = await response.json();
+  return channels.filter((channel: Channel) => !channel.is_dm);
+}
+
+export async function getAllChannels(token: string): Promise<Channel[]> {
+  const response = await fetch(`${API_URL}/channels`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to fetch all channels');
+  }
+
+  const channels = await response.json();
+  return channels.filter((channel: Channel) => !channel.is_dm);
 }
 
 export async function createChannel(token: string, data: CreateChannelData): Promise<Channel> {
@@ -34,7 +51,7 @@ export async function createChannel(token: string, data: CreateChannelData): Pro
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(data)
+    body: JSON.stringify({ ...data, is_dm: false })
   });
 
   if (!response.ok) {

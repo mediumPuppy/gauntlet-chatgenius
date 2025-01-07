@@ -18,24 +18,24 @@ const ChatIllustration = () => (
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-primary-50">
       {/* Navigation */}
-      <nav className="bg-white border-b">
+      <nav className="bg-white border-b border-primary-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <span className="text-xl font-bold text-primary-600">ChatGenius</span>
+              <span className="text-xl font-bold text-primary-500">ChatGenius</span>
             </div>
             <div className="flex items-center space-x-4">
               <Link
                 to="/login"
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                className="text-primary-600 hover:text-primary-700 px-3 py-2 rounded-md text-sm font-medium"
               >
                 Login
               </Link>
               <Link
                 to="/signup"
-                className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
+                className="bg-primary-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-600 transition-colors"
               >
                 Sign Up
               </Link>
@@ -48,18 +48,18 @@ export default function LandingPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <h1 className="text-6xl font-bold text-gray-900 leading-tight mb-6">
+            <h1 className="text-6xl font-bold text-primary-900 leading-tight mb-6">
               Connect and Chat
-              <span className="block text-primary-600">with Intelligence</span>
+              <span className="block text-primary-500">with Intelligence</span>
             </h1>
-            <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+            <p className="text-xl text-primary-600 mb-8 leading-relaxed">
               Experience the next generation of messaging with AI-powered features, 
               real-time communication, and seamless collaboration tools.
             </p>
             <div className="flex gap-4">
               <Link
                 to="/signup"
-                className="bg-primary-600 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-primary-700 transition-colors inline-flex items-center"
+                className="bg-primary-500 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-primary-600 transition-colors inline-flex items-center"
               >
                 Get Started
                 <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,7 +68,7 @@ export default function LandingPage() {
               </Link>
               <Link
                 to="/about"
-                className="text-primary-600 px-8 py-4 rounded-lg text-lg font-medium hover:text-primary-700 transition-colors inline-flex items-center"
+                className="text-primary-500 px-8 py-4 rounded-lg text-lg font-medium hover:text-primary-600 transition-colors inline-flex items-center border border-primary-200 hover:border-primary-300"
               >
                 Learn More
                 <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,7 +78,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-50 to-transparent rounded-3xl transform rotate-3"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-primary-200 to-primary-300 opacity-50 rounded-3xl transform rotate-3"></div>
             <div className="relative transform -rotate-3">
               <ChatIllustration />
             </div>
