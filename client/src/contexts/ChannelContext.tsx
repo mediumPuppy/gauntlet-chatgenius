@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { getChannels } from '../services/channel';
 
@@ -27,7 +27,7 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const { token } = useAuth();
 
-  const fetchChannels = async () => {
+  const fetchChannels = useCallback(async () => {
     if (!token) return;
     
     try {
@@ -52,14 +52,13 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, currentChannel]);
 
-  // Fetch channels on mount and when token changes
   useEffect(() => {
     if (token) {
       fetchChannels();
     }
-  }, [token]);
+  }, [token, fetchChannels]);
 
   const refreshChannels = async () => {
     setIsLoading(true);
@@ -81,7 +80,7 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
     </ChannelContext.Provider>
   );
 }
-
+// eslint-disable-next-line react-refresh/only-export-components
 export function useChannels() {
   const context = useContext(ChannelContext);
   if (!context) {

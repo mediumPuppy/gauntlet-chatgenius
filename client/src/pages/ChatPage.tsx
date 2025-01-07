@@ -7,6 +7,7 @@ import { MessageList } from '../components/chat/MessageList';
 import { MessageInput } from '../components/chat/MessageInput';
 import { getDMById } from '../services/dm';
 import { useAuth } from '../contexts/AuthContext';
+import { ConfirmModal } from '../components/common/ConfirmModal';
 
 const HamburgerMenu = ({ onClick }: { onClick: () => void }) => (
   <button 
@@ -28,7 +29,8 @@ export default function ChatPage() {
   const { currentChannel, setCurrentChannel, channels } = useChannels();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const fetchChannel = async () => {
@@ -63,6 +65,20 @@ export default function ChatPage() {
 
   return (
     <div className="h-screen flex relative">
+      <button
+        onClick={() => setShowLogoutConfirm(true)}
+        className="fixed top-4 right-4 z-50 px-5 py-1.5 text-primary-100 hover:text-white bg-primary-600 rounded"
+      >
+        Logout
+      </button>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={logout}
+        action="logout"
+      />
+
       {/* Mobile overlay */}
       <div 
         className={`fixed inset-0 bg-black transition-opacity duration-300 ease-in-out lg:hidden z-20
@@ -79,7 +95,7 @@ export default function ChatPage() {
         z-30
       `}>
         {/* Workspace header */}
-        <div className="h-12 bg-primary-600 flex items-center px-4 border-b border-primary-500">
+        <div className="h-16 bg-primary-600 flex items-center px-4 border-b border-primary-500">
           <h1 className="text-2xl text-primary-100 font-bold">ChatGenius</h1>
         </div>
         
@@ -92,7 +108,7 @@ export default function ChatPage() {
       {/* Main content */}
       <div className="flex-1 flex flex-col bg-white min-w-0">
         {/* Channel header */}
-        <div className="h-12 border-b flex items-center px-4 bg-primary-50">
+        <div className="h-16 border-b flex items-center px-4 bg-primary-50">
           <HamburgerMenu onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
           <h2 className="text-lg font-semibold text-primary-900 ml-2">
             {currentChannel ? (
