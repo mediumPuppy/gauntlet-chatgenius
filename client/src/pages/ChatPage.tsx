@@ -10,7 +10,7 @@ import { MessageProvider } from '../contexts/MessageContext';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 
 const ChatPageContent: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const { currentChannel } = useChannels();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);

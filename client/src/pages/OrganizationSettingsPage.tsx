@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { InviteCodeManager } from '../components/organization/InviteCodeManager';
