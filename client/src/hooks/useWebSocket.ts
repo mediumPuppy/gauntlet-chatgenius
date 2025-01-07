@@ -10,8 +10,18 @@ export function useWebSocket(channelId: string) {
   const maxReconnectDelay = 30000; // Maximum delay of 30 seconds
   const { token } = useAuth();
   const [connectionState, setConnectionState] = useState<ConnectionState>('PREPARING');
+  const [showReconnecting, setShowReconnecting] = useState(false);
+  const reconnectingTimeout = useRef<number>();
   const [error, setError] = useState<string | null>(null);
   const isConnecting = useRef(false);
+
+  // Clear the reconnecting timeout
+  const clearReconnectingTimeout = () => {
+    if (reconnectingTimeout.current) {
+      clearTimeout(reconnectingTimeout.current);
+      reconnectingTimeout.current = undefined;
+    }
+  };
 
   const connect = useCallback(() => {
     if (!token) {
@@ -41,6 +51,8 @@ export function useWebSocket(channelId: string) {
     socket.onopen = () => {
       if (socket !== ws.current) return; // Connection was replaced
       setConnectionState('CONNECTED');
+      setShowReconnecting(false);
+      clearReconnectingTimeout();
       setError(null);
       reconnectAttempts.current = 0;
       isConnecting.current = false;
@@ -62,9 +74,17 @@ export function useWebSocket(channelId: string) {
 
       // Don't reconnect if closure was clean and intentional
       if (event.wasClean) {
+        setShowReconnecting(false);
+        clearReconnectingTimeout();
         return;
       }
       
+      // Start the 3-second timer for showing reconnecting state
+      clearReconnectingTimeout();
+      reconnectingTimeout.current = setTimeout(() => {
+        setShowReconnecting(true);
+      }, 3000);
+
       // Calculate delay with exponential backoff
       const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), maxReconnectDelay);
       reconnectAttempts.current++;
@@ -91,11 +111,13 @@ export function useWebSocket(channelId: string) {
   // Cleanup on unmount or channel change
   useEffect(() => {
     return () => {
+      clearReconnectingTimeout();
       if (ws.current) {
         ws.current.close(1000, 'Cleanup'); // Clean closure
         ws.current = null;
       }
       setConnectionState('PREPARING');
+      setShowReconnecting(false);
       isConnecting.current = false;
     };
   }, [channelId]);
@@ -130,6 +152,7 @@ export function useWebSocket(channelId: string) {
 
   return {
     isConnected: connectionState === 'CONNECTED',
+    showReconnecting,
     connectionState,
     error,
     sendMessage,

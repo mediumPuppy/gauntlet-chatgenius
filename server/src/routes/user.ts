@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { userController } from '../controllers/user';
 import { authenticateToken } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
+import { RequestHandler } from 'express';
 
 const router = Router();
 
@@ -16,7 +17,7 @@ router.get('/search',
       organization_id: { type: 'string', required: true }
     }
   }),
-  userController.searchUsers
+  userController.searchUsers as RequestHandler
 );
 
 export default router; 

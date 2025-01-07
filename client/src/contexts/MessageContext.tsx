@@ -10,6 +10,7 @@ interface MessageContextType {
   sendTyping: () => void;
   typingUsers: TypingUser[];
   isConnected: boolean;
+  showReconnecting: boolean;
   error: string | null;
 }
 
@@ -25,7 +26,7 @@ export function MessageProvider({ children, channelId }: MessageProviderProps) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const { token } = useAuth();
 
-  const { isConnected, error, sendMessage, sendTyping, ws } = useWebSocket(channelId);
+  const { isConnected, showReconnecting, error, sendMessage, sendTyping, ws } = useWebSocket(channelId);
 
   // Fetch message history when channel changes
   useEffect(() => {
@@ -128,6 +129,7 @@ export function MessageProvider({ children, channelId }: MessageProviderProps) {
       sendTyping,
       typingUsers,
       isConnected,
+      showReconnecting,
       error
     }}>
       {children}

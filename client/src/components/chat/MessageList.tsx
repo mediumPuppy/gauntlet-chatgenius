@@ -9,7 +9,7 @@ function formatDate(timestamp: number) {
 }
 
 export function MessageList() {
-  const { messages, typingUsers, isConnected } = useMessages();
+  const { messages, typingUsers, showReconnecting } = useMessages();
   const { user } = useAuth();
   const { currentChannel } = useChannels();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -128,7 +128,7 @@ export function MessageList() {
           </div>
         </div>
       )}
-      {!isConnected && (
+      {showReconnecting && (
         <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-full shadow-lg">
           Reconnecting...
         </div>
