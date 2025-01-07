@@ -14,7 +14,7 @@ export interface TypingUser {
 }
 
 export interface WebSocketMessage {
-  type: 'message' | 'typing' | 'read' | 'error';
+  type: 'message' | 'typing' | 'read' | 'error' | 'auth';
   channelId: string;
   content?: string;
   timestamp?: number;
@@ -23,4 +23,6 @@ export interface WebSocketMessage {
   error?: string;
   userId?: string;
   username?: string;
-} 
+  token?: string;
+  isDM?: boolean;
+}

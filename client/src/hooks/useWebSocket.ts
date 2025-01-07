@@ -4,7 +4,7 @@ import { WebSocketMessage } from '../types/message';
 
 type ConnectionState = 'PREPARING' | 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED';
 
-export function useWebSocket(channelId: string) {
+export function useWebSocket(channelId: string, isDM: boolean = false) {
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectDelay = 30000; // Maximum delay of 30 seconds
@@ -25,6 +25,7 @@ export function useWebSocket(channelId: string) {
 
   const connect = useCallback(() => {
     if (!token) {
+      console.log('No token available, waiting...');
       setConnectionState('PREPARING');
       return;
     }
@@ -36,6 +37,7 @@ export function useWebSocket(channelId: string) {
 
     // Close existing connection if any
     if (ws.current) {
+      console.log('Closing existing connection');
       ws.current.close(1000, 'Reconnecting');
       ws.current = null;
     }
@@ -45,118 +47,129 @@ export function useWebSocket(channelId: string) {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.hostname}:3001/ws`;
+    console.log('Connecting to WebSocket:', wsUrl, { channelId, isDM });
     const socket = new WebSocket(wsUrl);
     ws.current = socket;
 
     socket.onopen = () => {
-      if (socket !== ws.current) return; // Connection was replaced
+      console.log('WebSocket connected, authenticating...');
+      isConnecting.current = false;
       setConnectionState('CONNECTED');
       setShowReconnecting(false);
       clearReconnectingTimeout();
-      setError(null);
       reconnectAttempts.current = 0;
-      isConnecting.current = false;
+      setError(null);
 
-      // Send authentication message with channelId
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ 
-          type: 'auth', 
-          token,
-          channelId 
-        }));
-      }
+      // Send authentication message
+      const authMessage: WebSocketMessage = {
+        type: 'auth',
+        token,
+        channelId,
+        isDM
+      };
+      console.log('Sending auth message:', { ...authMessage, token: '***' });
+      socket.send(JSON.stringify(authMessage));
     };
 
     socket.onclose = (event) => {
-      if (socket !== ws.current) return; // Connection was replaced
+      console.log('WebSocket closed:', event);
       isConnecting.current = false;
       setConnectionState('DISCONNECTED');
+      ws.current = null;
 
-      // Don't reconnect if closure was clean and intentional
-      if (event.wasClean) {
-        setShowReconnecting(false);
-        clearReconnectingTimeout();
-        return;
+      if (event.code !== 1000) { // 1000 is normal closure
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), maxReconnectDelay);
+        reconnectAttempts.current++;
+
+        console.log(`Reconnecting in ${delay}ms...`);
+        setTimeout(connect, delay);
+
+        // Show reconnecting message after 2 seconds
+        reconnectingTimeout.current = window.setTimeout(() => {
+          setShowReconnecting(true);
+        }, 2000);
       }
-      
-      // Start the 3-second timer for showing reconnecting state
-      clearReconnectingTimeout();
-      reconnectingTimeout.current = setTimeout(() => {
-        setShowReconnecting(true);
-      }, 3000);
-
-      // Calculate delay with exponential backoff
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), maxReconnectDelay);
-      reconnectAttempts.current++;
-      
-      console.log(`WebSocket disconnected. Attempting reconnect in ${delay}ms`);
-      setTimeout(connect, delay);
     };
 
     socket.onerror = (error) => {
-      if (socket !== ws.current) return; // Connection was replaced
       console.error('WebSocket error:', error);
-      setError('WebSocket connection error');
-      isConnecting.current = false;
+      setError('Connection error occurred');
     };
-  }, [token, channelId]);
 
-  // Only connect when we have a token and channelId
-  useEffect(() => {
-    if (token && channelId && connectionState === 'PREPARING') {
-      connect();
-    }
-  }, [connect, token, channelId, connectionState]);
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Received WebSocket message:', data);
+        
+        // Handle error messages
+        if (data.type === 'error') {
+          console.error('WebSocket error message:', data.error);
+          setError(data.error);
+          return;
+        }
 
-  // Cleanup on unmount or channel change
+        // Forward all messages to any listeners
+        const messageEvent = new MessageEvent('message', {
+          data: event.data // Keep original data to maintain all properties
+        });
+        socket.dispatchEvent(messageEvent);
+      } catch (err) {
+        console.error('Error parsing WebSocket message:', err);
+      }
+    };
+  }, [token, channelId, isDM]);
+
+  // Reconnect when channelId or isDM changes
   useEffect(() => {
+    console.log('Channel or DM status changed, reconnecting...', { channelId, isDM });
+    connect();
     return () => {
-      clearReconnectingTimeout();
       if (ws.current) {
-        ws.current.close(1000, 'Cleanup'); // Clean closure
+        console.log('Cleaning up WebSocket connection');
+        ws.current.close(1000, 'Channel/DM changed');
         ws.current = null;
       }
-      setConnectionState('PREPARING');
-      setShowReconnecting(false);
-      isConnecting.current = false;
+      clearReconnectingTimeout();
     };
-  }, [channelId]);
+  }, [connect, channelId, isDM]);
 
   const sendMessage = useCallback((content: string) => {
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN || connectionState !== 'CONNECTED') {
-      setError('WebSocket is not connected');
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket not connected, attempting to reconnect...');
+      connect();
+      setError('Not connected to chat');
       return;
     }
 
     const message: WebSocketMessage = {
       type: 'message',
-      channelId,
       content,
-      timestamp: Date.now(),
+      channelId,
+      isDM
     };
-
+    console.log('Sending message:', message);
     ws.current.send(JSON.stringify(message));
-  }, [channelId, connectionState]);
+  }, [channelId, isDM, connect]);
 
   const sendTyping = useCallback(() => {
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN || connectionState !== 'CONNECTED') return;
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      return; // Silently fail for typing events
+    }
 
     const message: WebSocketMessage = {
       type: 'typing',
       channelId,
-      timestamp: Date.now(),
+      isDM
     };
-
     ws.current.send(JSON.stringify(message));
-  }, [channelId, connectionState]);
+  }, [channelId, isDM]);
 
   return {
     isConnected: connectionState === 'CONNECTED',
     showReconnecting,
-    connectionState,
     error,
     sendMessage,
     sendTyping,
-    ws: ws.current,
+    ws: ws.current
   };
-} 
+}

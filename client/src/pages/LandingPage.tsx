@@ -51,10 +51,10 @@ const ParticleStream = () => (
   <motion.div 
     className="absolute inset-0 pointer-events-none"
     initial={{ opacity: 0 }}
-    animate={{ opacity: 0.8 }}
-    transition={{ duration: 0.8 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 1 }}
   >
-    {[...Array(20)].map((_, i) => (
+    {[...Array(35)].map((_, i) => (
       <motion.div
         key={i}
         className="absolute w-2 h-2 rounded-full bg-primary-300"
@@ -65,12 +65,12 @@ const ParticleStream = () => (
         }}
         animate={{
           y: window.innerHeight + 20,
-          opacity: [0, 0.8, 0],
+          opacity: [0, 0.9, 0],
         }}
         transition={{
-          duration: 2 + Math.random() * 1.5,
+          duration: 3 + Math.random() * 2,
           repeat: Infinity,
-          delay: Math.random() * 1.5,
+          delay: Math.random() * 2,
           ease: [0.4, 0, 0.6, 1]
         }}
       />

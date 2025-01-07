@@ -73,7 +73,8 @@ export const AppRoutes: React.FC = () => {
               <ChannelProvider>
                 <Routes>
                   <Route index element={<ChatPage />} />
-                  <Route path=":channelId" element={<ChatPage />} />
+                  <Route path="channel/:channelId" element={<ChatPage />} />
+                  <Route path="dm/:dmId" element={<ChatPage />} />
                 </Routes>
               </ChannelProvider>
             )}

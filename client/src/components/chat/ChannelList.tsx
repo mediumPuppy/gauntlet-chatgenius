@@ -28,7 +28,7 @@ interface ChannelListProps {
 export function ChannelList({ onChannelSelect }: ChannelListProps) {
   const { token } = useAuth();
   const { currentOrganization } = useOrganization();
-  const { channelId } = useParams();
+  const { channelId, dmId } = useParams();
   const { setCurrentChannel, isLoading: channelsLoading, channels: contextChannels } = useChannels();
   const [localChannels, setLocalChannels] = useState<Channel[]>([]);
   const [dms, setDMs] = useState<DM[]>([]);
@@ -134,7 +134,7 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
             {localChannels.map(channel => (
               <li key={channel.id}>
                 <Link
-                  to={`/chat/${channel.id}`}
+                  to={`/chat/channel/${channel.id}`}
                   onClick={onChannelSelect}
                   className={`px-4 py-2 flex items-center text-sm transition-colors ${
                     channelId === channel.id 
@@ -179,7 +179,7 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
                   to={`/chat/dm/${dm.id}`}
                   onClick={onChannelSelect}
                   className={`px-4 py-2 flex items-center text-sm transition-colors ${
-                    channelId === dm.id 
+                    dmId === dm.id 
                       ? 'bg-primary-600 text-white' 
                       : 'text-primary-100 hover:bg-primary-600/50 hover:text-white'
                   }`}
