@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useMessages } from '../../contexts/MessageContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -10,23 +10,55 @@ function formatDate(timestamp: number) {
 export function MessageList() {
   const { messages, typingUsers, isConnected } = useMessages();
   const { user } = useAuth();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const prevMessageLengthRef = useRef(messages.length);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const isNearBottom = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return true;
+    
+    const threshold = 100; // pixels from bottom
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
   };
 
-  // Scroll to bottom when new messages arrive
+  const handleScroll = () => {
+    setShouldAutoScroll(isNearBottom());
+  };
+
+  const scrollToBottom = useCallback((force = false) => {
+    const container = scrollContainerRef.current;
+    if (container && (force || shouldAutoScroll)) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [shouldAutoScroll]);
+
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    // Force scroll to bottom if we sent a new message (messages length increased)
+    const forceScroll = messages.length > prevMessageLengthRef.current;
+    prevMessageLengthRef.current = messages.length;
+    
+    scrollToBottom(forceScroll);
+  }, [messages, scrollToBottom]);
+
+  // Initial scroll to bottom
+  useEffect(() => {
+    scrollToBottom(true);
+  }, [scrollToBottom]);
 
   // Sort messages by timestamp in ascending order (oldest to newest)
   const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div className="flex flex-col justify-end min-h-full">
+    <div 
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto p-4"
+    >
+      <div className="flex flex-col min-h-full justify-end">
         <div className="space-y-4">
           {sortedMessages.map(message => (
             <div key={message.id} className="flex items-start">
@@ -53,7 +85,6 @@ export function MessageList() {
               {typingUsers.length === 1 ? 'is' : 'are'} typing...
             </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
       </div>
       {!isConnected && (
