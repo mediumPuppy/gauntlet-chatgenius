@@ -53,8 +53,8 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" style={{ position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh' }}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md relative">
         <div className="p-4 border-b">
           <h2 className="text-lg font-semibold">Start a Direct Message</h2>
         </div>

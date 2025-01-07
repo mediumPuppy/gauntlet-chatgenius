@@ -41,12 +41,11 @@ export default function ChatPage() {
   return (
     <div className="h-screen flex relative">
       {/* Mobile overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 lg:hidden z-20"
-          onClick={closeSidebar}
-        ></div>
-      )}
+      <div 
+        className={`fixed inset-0 bg-black transition-opacity duration-300 ease-in-out lg:hidden z-20
+          ${isSidebarOpen ? 'opacity-50 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={closeSidebar}
+      ></div>
 
       {/* Sidebar */}
       <div className={`
