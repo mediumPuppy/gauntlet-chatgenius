@@ -93,11 +93,16 @@ export function MessageProvider({ children, channelId }: MessageProviderProps) {
         }
 
         case 'typing':
+          console.log('Received typing event:', data);
           setTypingUsers((prev) => {
             const existing = prev.find((u) => u.userId === data.userId);
             if (existing) {
               return prev;
             }
+            console.log('Adding typing user:', {
+              userId: data.userId,
+              username: data.username
+            });
             return [...prev, {
               userId: data.userId,
               username: data.username

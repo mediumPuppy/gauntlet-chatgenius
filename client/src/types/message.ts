@@ -21,4 +21,6 @@ export interface WebSocketMessage {
   senderId?: string;
   senderName?: string;
   error?: string;
+  userId?: string;
+  username?: string;
 } 

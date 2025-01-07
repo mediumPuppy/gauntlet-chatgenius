@@ -33,26 +33,27 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
     try {
       const data = await getChannels(token);
       setChannels(data);
-      
-      // Set first channel as current if none selected
-      if (!currentChannel && data.length > 0) {
-        setCurrentChannel(data[0]);
-      }
-      
-      // Update current channel data if it exists in the new channel list
-      if (currentChannel) {
-        const updatedCurrentChannel = data.find(c => c.id === currentChannel.id);
-        if (updatedCurrentChannel) {
-          setCurrentChannel(updatedCurrentChannel);
-        }
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch channels');
       console.error('Failed to fetch channels:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [token, currentChannel]);
+  }, [token]);
+
+  useEffect(() => {
+    if (!currentChannel && channels.length > 0) {
+      setCurrentChannel(channels[0]);
+      return;
+    }
+    
+    if (currentChannel) {
+      const updatedCurrentChannel = channels.find(c => c.id === currentChannel.id);
+      if (updatedCurrentChannel) {
+        setCurrentChannel(updatedCurrentChannel);
+      }
+    }
+  }, [channels, currentChannel]);
 
   useEffect(() => {
     if (token) {
@@ -80,7 +81,7 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
     </ChannelContext.Provider>
   );
 }
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useChannels() {
   const context = useContext(ChannelContext);
   if (!context) {

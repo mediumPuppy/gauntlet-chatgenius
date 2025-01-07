@@ -2,16 +2,27 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { WebSocketMessage } from '../types/message';
 
+type ConnectionState = 'PREPARING' | 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED';
+
 export function useWebSocket(channelId: string) {
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectDelay = 30000; // Maximum delay of 30 seconds
   const { token } = useAuth();
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('PREPARING');
   const [error, setError] = useState<string | null>(null);
+  const isConnecting = useRef(false);
 
   const connect = useCallback(() => {
-    if (!token) return;
+    if (!token) {
+      setConnectionState('PREPARING');
+      return;
+    }
+
+    if (isConnecting.current) {
+      console.log('Connection already in progress');
+      return;
+    }
 
     // Close existing connection if any
     if (ws.current) {
@@ -19,15 +30,20 @@ export function useWebSocket(channelId: string) {
       ws.current = null;
     }
 
+    isConnecting.current = true;
+    setConnectionState('CONNECTING');
+
     const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}/ws`;
     const socket = new WebSocket(wsUrl);
     ws.current = socket;
 
     socket.onopen = () => {
       if (socket !== ws.current) return; // Connection was replaced
-      setIsConnected(true);
+      setConnectionState('CONNECTED');
       setError(null);
       reconnectAttempts.current = 0;
+      isConnecting.current = false;
+
       // Send authentication message with channelId
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ 
@@ -40,7 +56,9 @@ export function useWebSocket(channelId: string) {
 
     socket.onclose = (event) => {
       if (socket !== ws.current) return; // Connection was replaced
-      setIsConnected(false);
+      isConnecting.current = false;
+      setConnectionState('DISCONNECTED');
+
       // Don't reconnect if closure was clean and intentional
       if (event.wasClean) {
         return;
@@ -58,33 +76,31 @@ export function useWebSocket(channelId: string) {
       if (socket !== ws.current) return; // Connection was replaced
       console.error('WebSocket error:', error);
       setError('WebSocket connection error');
+      isConnecting.current = false;
     };
   }, [token, channelId]);
 
-  // Reconnect when channel changes or token changes
+  // Only connect when we have a token and channelId
   useEffect(() => {
-    connect();
-    // Cleanup previous connection when channel changes
-    return () => {
-      if (ws.current) {
-        ws.current.close(1000, 'Channel changed'); // Clean closure
-        ws.current = null;
-      }
-    };
-  }, [connect, channelId]);
+    if (token && channelId && connectionState === 'PREPARING') {
+      connect();
+    }
+  }, [connect, token, channelId, connectionState]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount or channel change
   useEffect(() => {
     return () => {
       if (ws.current) {
-        ws.current.close(1000, 'Component unmounted'); // Clean closure
+        ws.current.close(1000, 'Cleanup'); // Clean closure
         ws.current = null;
       }
+      setConnectionState('PREPARING');
+      isConnecting.current = false;
     };
-  }, []);
+  }, [channelId]);
 
   const sendMessage = useCallback((content: string) => {
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN || connectionState !== 'CONNECTED') {
       setError('WebSocket is not connected');
       return;
     }
@@ -97,10 +113,10 @@ export function useWebSocket(channelId: string) {
     };
 
     ws.current.send(JSON.stringify(message));
-  }, [channelId]);
+  }, [channelId, connectionState]);
 
   const sendTyping = useCallback(() => {
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) return;
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN || connectionState !== 'CONNECTED') return;
 
     const message: WebSocketMessage = {
       type: 'typing',
@@ -109,10 +125,11 @@ export function useWebSocket(channelId: string) {
     };
 
     ws.current.send(JSON.stringify(message));
-  }, [channelId]);
+  }, [channelId, connectionState]);
 
   return {
-    isConnected,
+    isConnected: connectionState === 'CONNECTED',
+    connectionState,
     error,
     sendMessage,
     sendTyping,

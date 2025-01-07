@@ -52,6 +52,34 @@ export function MessageList() {
   // Sort messages by timestamp in ascending order (oldest to newest)
   const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
 
+  const formatTypingUsers = (users: typeof typingUsers) => {
+    if (users.length === 0) return '';
+    
+    // Filter out current user
+    const otherUsers = users.filter(u => u.userId !== user?.id);
+    if (otherUsers.length === 0) return '';
+
+    const names = otherUsers.map(u => u.username);
+    const joinedNames = names.join(', ');
+    
+    if (joinedNames.length <= 20) {
+      return joinedNames;
+    }
+    
+    // Find the maximum number of names that fit within 20 chars
+    const displayNames = [];
+    let totalLength = 0;
+    for (const name of names) {
+      if (totalLength + name.length + 2 > 20) { // +2 for ", "
+        break;
+      }
+      displayNames.push(name);
+      totalLength += name.length + 2;
+    }
+    
+    return `${displayNames.join(', ')} and others`;
+  };
+
   return (
     <div 
       ref={scrollContainerRef}
@@ -76,15 +104,16 @@ export function MessageList() {
               </div>
             </div>
           ))}
-          {typingUsers.length > 0 && (
-            <div className="text-sm text-gray-500 italic">
-              {typingUsers
-                .filter(u => u.userId !== user?.id)
-                .map(u => u.username)
-                .join(', ')}{' '}
-              {typingUsers.length === 1 ? 'is' : 'are'} typing...
-            </div>
-          )}
+          <div className="h-6">
+            {typingUsers.length > 0 && typingUsers.some(u => u.userId !== user?.id) && (
+              <div className="text-sm text-gray-500 italic">
+                <span className="font-bold">
+                  {formatTypingUsers(typingUsers)}
+                </span>{' '}
+                {typingUsers.filter(u => u.userId !== user?.id).length === 1 ? 'is' : 'are'} typing...
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {!isConnected && (

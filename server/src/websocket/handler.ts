@@ -4,6 +4,7 @@ import { WebSocketClient, WebSocketMessage, ChatMessage, TypingMessage } from '.
 import { messageQueries } from '../models/message';
 import { channelQueries } from '../models/channel';
 import { User } from '../models/user';
+import pool from '../config/database';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const clients = new Map<string, Set<WebSocketClient>>();
@@ -81,7 +82,28 @@ export class WebSocketHandler {
         await this.handleChatMessage(ws, chatMessage);
         break;
       case 'typing':
-        await this.broadcastToChannel(channelId, { ...data, channelId });
+        try {
+          const typingUser = await pool.query(
+            'SELECT username FROM users WHERE id = $1',
+            [ws.userId]
+          );
+
+          if (typingUser.rows.length === 0) {
+            console.error('User not found for typing event:', ws.userId);
+            return;
+          }
+
+          const typingMessage: TypingMessage = {
+            type: 'typing',
+            channelId,
+            userId: ws.userId!,
+            username: typingUser.rows[0].username,
+            timestamp: data.timestamp
+          };
+          await this.broadcastToChannel(channelId, typingMessage);
+        } catch (error) {
+          console.error('Error handling typing event:', error);
+        }
         break;
       case 'read':
         await this.broadcastToChannel(channelId, { ...data, channelId });
@@ -172,7 +194,6 @@ export class WebSocketHandler {
     try {
       // Verify user is member of channel first
       const members = await channelQueries.getMembers(channelId);
-      console.log('Joining channel:', channelId, 'User ID:', ws.userId, 'Members:', members);
       
       if (!members.includes(ws.userId!)) {
         ws.send(JSON.stringify({
@@ -188,7 +209,6 @@ export class WebSocketHandler {
       
       const channelClients = clients.get(channelId)!;
       channelClients.add(ws);
-      console.log(`Client added to channel ${channelId}. Total clients: ${channelClients.size}`);
 
       // Confirm channel join to client
       ws.send(JSON.stringify({

@@ -25,27 +25,30 @@ export function MessageInput() {
   };
 
   return (
-    <div className="h-24 border-t p-4">
+    <div className="h-auto min-h-[5rem] max-h-[12rem] border-t p-4">
       <form onSubmit={handleSendMessage} className="h-full">
-        <div className="bg-gray-50 rounded-lg flex items-stretch h-full">
-          <input
-            type="text"
+        <div className="bg-gray-50 rounded-lg flex h-full">
+          <textarea
             value={newMessage}
             onChange={(e) => {
               setNewMessage(e.target.value);
               handleTyping();
+              // Auto-adjust height
+              e.target.style.height = 'auto';
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
             }}
             placeholder={currentChannel ? `Message ${currentChannel.is_dm ? '' : '#'}${currentChannel.name}` : 'Select a conversation to start messaging'}
             disabled={!currentChannel}
-            className="flex-1 bg-transparent outline-none px-3"
+            className="flex-1 bg-transparent outline-none px-3 py-2 resize-none min-h-[2rem] max-h-[10rem] overflow-y-auto"
+            rows={1}
           />
           <button
             type="submit"
             disabled={!currentChannel || !newMessage.trim()}
-            className="group w-12 md:w-16 bg-primary-300 hover:bg-primary-200 disabled:opacity-50 disabled:hover:bg-primary-300 transition-all duration-200 rounded-r-lg flex items-center justify-center"
+            className="group w-12 md:w-16 bg-primary-300 enabled:hover:bg-primary-200 disabled:opacity-50 disabled:hover:bg-primary-300 transition-all duration-200 rounded-r-lg flex items-center justify-center"
           >
             <svg
-              className="w-6 h-6 text-primary-800 transform transition-all duration-200 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:scale-110"
+              className="w-6 h-6 text-primary-800 transform transition-all duration-200 group-enabled:group-hover:translate-x-1 group-enabled:group-hover:-translate-y-1 group-enabled:group-hover:scale-110"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
