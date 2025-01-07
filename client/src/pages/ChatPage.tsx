@@ -32,7 +32,6 @@ const ChatPageContent: React.FC = () => {
         <OrganizationSwitcher />
         <div className="flex-1" />
         <div className="flex items-center space-x-4">
-          <span className="text-white hidden sm:inline">{user?.username}</span>
           <button
             onClick={logout}
             className="text-white hover:text-teal-200 transition-colors text-sm px-3 py-1 rounded border border-white/20 hover:border-teal-200"
