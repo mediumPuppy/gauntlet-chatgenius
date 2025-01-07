@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { useChannels } from '../contexts/ChannelContext';
 import { MessageProvider } from '../contexts/MessageContext';
 import { ChannelList } from '../components/chat/ChannelList';
 import { MessageList } from '../components/chat/MessageList';
 import { MessageInput } from '../components/chat/MessageInput';
+import { getDMById } from '../services/dm';
+import { useAuth } from '../contexts/AuthContext';
 
 const HamburgerMenu = ({ onClick }: { onClick: () => void }) => (
   <button 
@@ -22,17 +24,38 @@ const HamburgerMenu = ({ onClick }: { onClick: () => void }) => (
 
 export default function ChatPage() {
   const { channelId } = useParams();
+  const location = useLocation();
   const { currentChannel, setCurrentChannel, channels } = useChannels();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
 
   useEffect(() => {
-    if (channelId && channels.length > 0) {
-      const channel = channels.find(c => c.id === channelId);
-      if (channel) {
-        setCurrentChannel(channel);
+    const fetchChannel = async () => {
+      if (!channelId || !token) return;
+
+      try {
+        // Check if it's a DM route
+        if (location.pathname.includes('/chat/dm/')) {
+          const dmData = await getDMById(token, channelId);
+          setCurrentChannel(dmData);
+        } else {
+          // Regular channel
+          const channel = channels.find(c => c.id === channelId);
+          if (channel) {
+            setCurrentChannel(channel);
+          } else {
+            setError('Channel not found');
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load chat');
+        console.error('Error loading chat:', err);
       }
-    }
-  }, [channelId, channels, setCurrentChannel]);
+    };
+
+    fetchChannel();
+  }, [channelId, channels, location.pathname, setCurrentChannel, token]);
 
   const closeSidebar = () => {
     setIsSidebarOpen(false);
@@ -72,7 +95,17 @@ export default function ChatPage() {
         <div className="h-12 border-b flex items-center px-4 bg-primary-50">
           <HamburgerMenu onClick={() => setIsSidebarOpen(!isSidebarOpen)} />
           <h2 className="text-lg font-semibold text-primary-900 ml-2">
-            {currentChannel ? `${currentChannel.is_dm ? '' : '#'}${currentChannel.name}` : 'Select a channel'}
+            {currentChannel ? (
+              currentChannel.is_dm ? (
+                `Chat with ${currentChannel.name}`
+              ) : (
+                `#${currentChannel.name}`
+              )
+            ) : error ? (
+              <span className="text-red-500">{error}</span>
+            ) : (
+              'Select a channel'
+            )}
           </h2>
         </div>
 
@@ -83,7 +116,7 @@ export default function ChatPage() {
           </MessageProvider>
         ) : (
           <div className="flex-1 flex items-center justify-center text-primary-500">
-            Select a channel to start messaging
+            {error || 'Select a channel to start messaging'}
           </div>
         )}
       </div>

@@ -73,4 +73,51 @@ export const getUserDMs = async (req: AuthRequest, res: Response) => {
     console.error('Error in getUserDMs:', error);
     res.status(500).json({ error: 'Failed to get DMs' });
   }
+};
+
+export const getDMById = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'User not authenticated' });
+    return;
+  }
+
+  const dmId = req.params.id;
+  const userId = req.user.id;
+
+  try {
+    const dm = await pool.query(
+      `SELECT 
+        dm.*,
+        CASE 
+          WHEN dm.user1_id = $1 THEN u2.username
+          ELSE u1.username
+        END as other_username,
+        CASE 
+          WHEN dm.user1_id = $1 THEN u2.id
+          ELSE u1.id
+        END as other_user_id
+      FROM direct_messages dm
+      JOIN users u1 ON dm.user1_id = u1.id
+      JOIN users u2 ON dm.user2_id = u2.id
+      WHERE dm.id = $2 AND (dm.user1_id = $1 OR dm.user2_id = $1)`,
+      [userId, dmId]
+    );
+
+    if (dm.rows.length === 0) {
+      res.status(404).json({ error: 'DM not found or you do not have access' });
+      return;
+    }
+
+    // Format the response to match the channel format
+    res.json({
+      id: dm.rows[0].id,
+      name: dm.rows[0].other_username,
+      is_dm: true,
+      created_at: dm.rows[0].created_at,
+      other_user_id: dm.rows[0].other_user_id
+    });
+  } catch (error) {
+    console.error('Error in getDMById:', error);
+    res.status(500).json({ error: 'Failed to get DM details' });
+  }
 }; 
