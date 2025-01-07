@@ -1,20 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { searchUsers, startDM } from '../../services/user';
 import { useNavigate } from 'react-router-dom';
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-}
+import { User } from '../../types/user';
 
 interface StartDMDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
+export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -31,7 +26,7 @@ export function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
       try {
         setLoading(true);
         const results = await searchUsers(token!, searchQuery);
-        setUsers(results.filter(user => user.id !== currentUser?.id));
+        setUsers(results.filter((user: User) => user.id !== currentUser?.id));
       } catch (error) {
         console.error('Failed to search users:', error);
       } finally {

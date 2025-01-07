@@ -1,15 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-
-interface WebSocketMessage {
-  type: 'message' | 'typing' | 'read' | 'error';
-  channelId: string;
-  content?: string;
-  timestamp?: number;
-  senderId?: string;
-  senderName?: string;
-  error?: string;
-}
+import { WebSocketMessage } from '../types/message';
 
 export function useWebSocket(channelId: string) {
   const ws = useRef<WebSocket | null>(null);

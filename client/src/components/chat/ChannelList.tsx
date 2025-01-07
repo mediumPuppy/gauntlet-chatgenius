@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getChannels } from '../../services/channel';
 import { getDMs } from '../../services/user';
-import { StartDMDialog } from './StartDMDialog';
+import StartDMDialog from './StartDMDialog';
 
 interface Channel {
   id: string;

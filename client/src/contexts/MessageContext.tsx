@@ -1,23 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from './AuthContext';
-import { useParams } from 'react-router-dom';
 import { API_URL } from '../services/config';
-
-interface Message {
-  id: string;
-  content: string;
-  userId: string;
-  channelId?: string;
-  dmId?: string;
-  senderName: string;
-  timestamp: number;
-}
-
-interface TypingUser {
-  userId: string;
-  username: string;
-}
+import { Message, TypingUser } from '../types/message';
 
 interface MessageContextType {
   messages: Message[];
@@ -30,13 +15,17 @@ interface MessageContextType {
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
 
-export function MessageProvider({ children }: { children: React.ReactNode }) {
+interface MessageProviderProps {
+  children: React.ReactNode;
+  channelId: string;
+}
+
+export function MessageProvider({ children, channelId }: MessageProviderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const { token } = useAuth();
-  const { channelId } = useParams();
 
-  const { isConnected, error, sendMessage, sendTyping, ws } = useWebSocket(channelId || '');
+  const { isConnected, error, sendMessage, sendTyping, ws } = useWebSocket(channelId);
 
   // Fetch message history when channel changes
   useEffect(() => {
@@ -135,7 +124,7 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
     </MessageContext.Provider>
   );
 }
-
+// eslint-disable-next-line react-refresh/only-export-components
 export function useMessages() {
   const context = useContext(MessageContext);
   if (context === undefined) {

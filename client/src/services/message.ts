@@ -1,13 +1,5 @@
-const API_URL = 'http://localhost:3000/api';
-
-export interface Message {
-  id: string;
-  content: string;
-  channel_id: string;
-  user_id: string;
-  username: string;
-  created_at: string;
-}
+import { API_URL } from './config';
+import { Message } from '../types/message';
 
 export async function getMessages(token: string, channelId: string): Promise<Message[]> {
   const response = await fetch(`${API_URL}/channels/${channelId}/messages`, {
