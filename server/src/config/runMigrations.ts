@@ -2,11 +2,17 @@ import { Pool } from 'pg';
 import { config } from './database';
 import * as fs from 'fs';
 import * as path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const pool = new Pool(config);
 
 async function runMigrations() {
   try {
+    await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+    console.log('UUID extension created successfully');
+
     // Create migrations table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS migrations (
