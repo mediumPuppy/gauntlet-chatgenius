@@ -11,6 +11,7 @@ export interface Message {
   dmId?: string;
   senderName: string;
   timestamp: number;
+  attachments?: string[]; // Array of S3 keys
 }
 
 interface CreateMessageData {
