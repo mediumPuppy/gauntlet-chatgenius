@@ -8,6 +8,8 @@ export interface User {
   email: string;
   username: string;
   created_at: Date;
+  last_seen?: Date;
+  is_online?: boolean;
 }
 
 export interface UserWithPassword extends User {
@@ -63,6 +65,34 @@ export const userQueries = {
        INNER JOIN organization_members om ON u.id = om.user_id
        WHERE om.organization_id = $1
        ORDER BY u.username`,
+      [organizationId]
+    );
+    return result.rows;
+  },
+
+  async updatePresence(userId: string, isOnline: boolean): Promise<void> {
+    await pool.query(
+      `UPDATE users 
+       SET is_online = $1, last_seen = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [isOnline, userId]
+    );
+  },
+
+  async getUserPresence(userId: string): Promise<{ is_online: boolean; last_seen: Date } | null> {
+    const result = await pool.query(
+      'SELECT is_online, last_seen FROM users WHERE id = $1',
+      [userId]
+    );
+    return result.rows[0] || null;
+  },
+
+  async getOrganizationMemberPresence(organizationId: string): Promise<{ user_id: string; is_online: boolean; last_seen: Date }[]> {
+    const result = await pool.query(
+      `SELECT u.id as user_id, u.is_online, u.last_seen
+       FROM users u
+       INNER JOIN organization_members om ON u.id = om.user_id
+       WHERE om.organization_id = $1`,
       [organizationId]
     );
     return result.rows;

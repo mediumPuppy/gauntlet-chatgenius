@@ -82,7 +82,6 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
     const fetchMessageHistory = async () => {
       try {
         const endpoint = isDM ? `/dm/${channelId}/messages` : `/messages?channelId=${channelId}`;
-        console.log('Fetching messages from:', endpoint);
         const response = await fetch(`${API_URL}${endpoint}`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -121,7 +120,6 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
     };
 
     if (channelId && token) {
-      console.log('Fetching messages for:', isDM ? 'DM' : 'Channel', channelId);
       fetchMessageHistory();
     }
     

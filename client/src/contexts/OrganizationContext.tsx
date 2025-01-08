@@ -38,9 +38,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
       
       const text = await response.text();
-      console.log('Raw API response:', text); // Debug log
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         throw new Error(`Failed to fetch organizations: ${text}`);
@@ -54,7 +51,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       try {
         // Try to clean the response text of any BOM or whitespace
         const cleanText = text.trim().replace(/^\uFEFF/, '');
-        console.log('Cleaned text for parsing:', cleanText);
         const orgs = JSON.parse(cleanText);
         if (!Array.isArray(orgs)) {
           throw new Error('Invalid response format');

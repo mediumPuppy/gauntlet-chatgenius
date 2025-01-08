@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     validateStoredAuth();
-  }, []);
+  }, [token]);
 
   const login = (newToken: string, newUser: User) => {
     setToken(newToken);

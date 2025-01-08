@@ -179,4 +179,45 @@ export const getDMById = async (req: AuthRequest, res: Response) => {
     console.error('Error in getDMById:', error);
     res.status(500).json({ error: 'Failed to get DM details' });
   }
-}; 
+};
+
+export const getDMMessages = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'User not authenticated' });
+  }
+
+  const dmId = req.params.id;
+  const userId = req.user.id;
+
+  try {
+    // First verify the user has access to this DM
+    const dmCheck = await pool.query(
+      'SELECT * FROM direct_messages WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)',
+      [dmId, userId]
+    );
+
+    if (dmCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Not authorized to access this DM' });
+    }
+
+    // Get messages
+    const messages = await pool.query(
+      `SELECT 
+        m.id,
+        m.content,
+        m.user_id as userId,
+        u.username as senderName,
+        m.created_at as timestamp
+      FROM messages m
+      JOIN users u ON m.user_id = u.id
+      WHERE m.dm_id = $1
+      ORDER BY m.created_at ASC`,
+      [dmId]
+    );
+
+    res.json(messages.rows);
+  } catch (error) {
+    console.error('Error in getDMMessages:', error);
+    res.status(500).json({ error: 'Failed to get DM messages' });
+  }
+};

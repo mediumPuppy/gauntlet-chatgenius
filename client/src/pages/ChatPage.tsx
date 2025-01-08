@@ -31,12 +31,11 @@ const ChatPageContent: React.FC = memo(() => {
 
   const fetchDMInfo = useCallback(async (id: string) => {
     if (!token) {
-      console.log('No token available');
+      console.error('No token available');
       return;
     }
 
     try {
-      console.log('Fetching DM info for:', id);
       const response = await fetch(`${API_URL}/dm/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -50,7 +49,6 @@ const ChatPageContent: React.FC = memo(() => {
       }
 
       const dmInfo = await response.json();
-      console.log('Fetched DM info:', dmInfo);
       setCurrentDM(dmInfo);
     } catch (error) {
       console.error('Error fetching DM info:', error);

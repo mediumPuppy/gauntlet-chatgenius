@@ -6,9 +6,17 @@ export const config: PoolConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'chatgenius',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 10000,
 };
 
 const pool = new Pool(config);
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
 
 export async function testConnection() {
   try {

@@ -85,8 +85,8 @@ TypingIndicator.displayName = 'TypingIndicator';
 export function MessageList() {
   const { messages, typingUsers, showReconnecting } = useMessages();
   const { user } = useAuth();
-  const { currentChannel } = useChannels();
-  const { dmId } = useParams<{ dmId?: string }>();
+  // const { currentChannel } = useChannels();
+  // const { dmId } = useParams<{ dmId?: string }>();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const prevMessageLengthRef = useRef(messages.length);

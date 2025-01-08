@@ -28,7 +28,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     const ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {
-      console.log('WebSocket connected');
       setIsConnected(true);
       
       // Send authentication message
@@ -39,7 +38,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     };
 
     ws.onclose = () => {
-      console.log('WebSocket disconnected');
       setIsConnected(false);
     };
 
