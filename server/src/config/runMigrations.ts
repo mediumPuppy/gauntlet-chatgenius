@@ -1,19 +1,36 @@
 import { Pool } from 'pg';
-import { config } from './database';
 import * as fs from 'fs';
 import * as path from 'path';
 import dotenv from 'dotenv';
+import initializeDatabase from './init-db';
 
 dotenv.config();
 
-const pool = new Pool(config);
+console.log('Environment variables:', {
+  DB_USER: process.env.DB_USER,
+  DB_HOST: process.env.DB_HOST,
+  DB_NAME: process.env.DB_NAME
+});
+
+const pool = new Pool({
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  port: parseInt(process.env.DB_PORT || '5432'),
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
 async function runMigrations() {
   try {
-    await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
-    console.log('UUID extension created successfully');
+    // Initialize database first
+    console.log('Initializing database...');
+    await initializeDatabase();
+    console.log('Database initialized successfully');
 
-    // Create migrations table if it doesn't exist
+    // Create migrations table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS migrations (
         id SERIAL PRIMARY KEY,
