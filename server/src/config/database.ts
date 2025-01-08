@@ -1,17 +1,7 @@
 import { Pool, PoolConfig } from 'pg';
-import dotenv from 'dotenv'
+import dotenv from 'dotenv';
 
 dotenv.config();
-
-// Add this debug logging
-console.log('Database Config:', {
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  ssl: process.env.NODE_ENV === 'production'
-});
-
 
 export const config: PoolConfig = {
   user: process.env.DB_USER,
@@ -19,7 +9,9 @@ export const config: PoolConfig = {
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: {
+    rejectUnauthorized: false
+  },
   connectionTimeoutMillis: 5000,
   statement_timeout: 10000,
 };
