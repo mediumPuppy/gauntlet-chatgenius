@@ -6,12 +6,6 @@ import initializeDatabase from './init-db';
 
 dotenv.config();
 
-console.log('Environment variables:', {
-  DB_USER: process.env.DB_USER,
-  DB_HOST: process.env.DB_HOST,
-  DB_NAME: process.env.DB_NAME
-});
-
 const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
