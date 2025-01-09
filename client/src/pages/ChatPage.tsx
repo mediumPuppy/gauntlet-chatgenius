@@ -11,6 +11,7 @@ import { ConfirmModal } from '../components/common/ConfirmModal';
 import { API_URL } from '../services/config';
 import { usePresence } from '../contexts/PresenceContext';
 import { UserAvatar } from '../components/common/UserAvatar';
+import { GlobalMessageSearch } from '../components/global/GlobalMessageSearch';
 
 interface DMInfo {
   id: string;
@@ -26,6 +27,7 @@ const ChatPageContent: React.FC = memo(() => {
   const { dmId } = useParams<{ dmId?: string }>();
   const [currentDM, setCurrentDM] = useState<DMInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { token } = useAuth();
   const { isUserOnline } = usePresence();
 
@@ -108,7 +110,7 @@ const ChatPageContent: React.FC = memo(() => {
   const shouldShowChat = Boolean(dmId) || Boolean(currentChannel);
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen relative">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-primary-600 flex items-center px-4 z-50">
         <button
@@ -124,6 +126,15 @@ const ChatPageContent: React.FC = memo(() => {
           {renderHeader}
         </div>
         <div className="flex items-center space-x-4">
+          <button 
+            onClick={() => setIsSearchOpen(true)}
+            className="text-white hover:text-teal-200 transition-colors mr-2"
+            title="Search Messages"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
           <button
             onClick={handleLogout}
             className="text-white hover:text-teal-200 transition-colors text-sm px-3 py-1 rounded border border-white/20 hover:border-teal-200"
@@ -180,6 +191,22 @@ const ChatPageContent: React.FC = memo(() => {
         onConfirm={logout}
         action="logout"
       />
+
+      {/* Search Modal */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
+            <button 
+              onClick={() => setIsSearchOpen(false)}
+              className="absolute top-4 right-4 text-gray-600 hover:text-gray-900"
+            >
+              ✕
+            </button>
+            <h2 className="text-2xl font-bold mb-4">Search Messages</h2>
+            <GlobalMessageSearch />
+          </div>
+        </div>
+      )}
     </div>
   );
 });

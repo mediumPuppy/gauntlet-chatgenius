@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState, useCallback, memo, useMemo } from 'react';
 import { useMessages } from '../../contexts/MessageContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChannels } from '../../contexts/ChannelContext';
-import { useParams } from 'react-router-dom';
 import { Message as MessageType } from '../../types/message';
 
 const formatDate = (timestamp: number) => {
@@ -12,24 +10,61 @@ const formatDate = (timestamp: number) => {
 
 // Memoized Message component
 const Message = memo(({ message }: { message: MessageType }) => {
-  if (!message.senderName) {
-    console.error('Message missing senderName:', message);
-    return null;
-  }
+  const renderContent = (content: string) => {
+    // Check for image markdown syntax: ![alt](url)
+    const imageMatch = content.match(/!\[(.*?)\]\((.*?)\)/);
+    if (imageMatch) {
+      return (
+        <div className="mt-1">
+          <img 
+            src={imageMatch[2]} 
+            alt={imageMatch[1]} 
+            className="max-w-[300px] max-h-[300px] rounded-lg object-contain cursor-pointer hover:opacity-90"
+            onClick={() => window.open(imageMatch[2], '_blank')}
+            loading="lazy"
+          />
+        </div>
+      );
+    }
+
+    // Check for file link markdown syntax: [text](url)
+    const linkMatch = content.match(/\[(.*?)\]\((.*?)\)/);
+    if (linkMatch) {
+      return (
+        <div className="mt-1">
+          <a 
+            href={linkMatch[2]} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="inline-flex items-center space-x-2 text-primary-600 hover:text-primary-700 underline"
+          >
+            <span>{linkMatch[1]}</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      );
+    }
+
+    return <p className="text-gray-800">{content}</p>;
+  };
 
   return (
-    <div className="flex items-start">
-      <div className="w-10 h-10 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center text-gray-600">
-        {message.senderName[0].toUpperCase()}
+    <div className="flex items-start space-x-3 p-2 hover:bg-gray-50">
+      <div className="flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+          {message.senderName[0].toUpperCase()}
+        </div>
       </div>
-      <div className="ml-3">
-        <div className="flex items-baseline">
-          <span className="font-medium">{message.senderName}</span>
-          <span className="ml-2 text-sm text-gray-500">
-            {formatDate(message.timestamp)}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline space-x-2">
+          <span className="font-medium text-gray-900">{message.senderName}</span>
+          <span className="text-sm text-gray-500">
+            {new Date(message.timestamp).toLocaleTimeString()}
           </span>
         </div>
-        <p className="text-gray-800">{message.content}</p>
+        {renderContent(message.content)}
       </div>
     </div>
   );

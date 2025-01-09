@@ -13,6 +13,7 @@ import uploadRoutes from './routes/upload';
 import pool from './config/database';
 import { WebSocketHandler } from './websocket/handler';
 import { WebSocketClient } from './websocket/types';
+import searchRoutes from './routes/search';
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/dm', dmRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/search', searchRoutes);
 // Basic route
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'ChatGenius API is running' });
