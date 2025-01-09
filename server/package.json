@@ -15,8 +15,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.723.0",
-    "@aws-sdk/s3-request-presigner": "^3.723.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
     "@types/dotenv": "^8.2.3",
@@ -33,14 +31,12 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
     "pg": "^8.13.1",
     "ts-node-dev": "^2.0.0",
     "uuid": "^11.0.4",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/multer": "^1.4.12",
     "@types/socket.io": "^3.0.2",
     "ts-node": "^10.9.2"
   }

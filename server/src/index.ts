@@ -12,7 +12,6 @@ import organizationRoutes from './routes/organization';
 import { WebSocketHandler } from './websocket/handler';
 import { WebSocketClient } from './websocket/types';
 import pool from './config/database';
-import uploadRoutes from './routes/upload';
 
 dotenv.config();
 
@@ -51,7 +50,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/dm', dmRoutes);
 app.use('/api/organizations', organizationRoutes);
-app.use('/api/upload', uploadRoutes);
 
 // Basic route
 app.get('/', (req: Request, res: Response) => {
