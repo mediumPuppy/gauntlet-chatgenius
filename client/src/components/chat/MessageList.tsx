@@ -3,11 +3,6 @@ import { useMessages } from '../../contexts/MessageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Message as MessageType } from '../../types/message';
 
-const formatDate = (timestamp: number) => {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
 // Memoized Message component
 const Message = memo(({ message }: { message: MessageType }) => {
   const renderContent = (content: string) => {

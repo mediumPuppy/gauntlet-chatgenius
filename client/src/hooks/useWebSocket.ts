@@ -23,7 +23,7 @@ export function useWebSocket(channelId: string, isDM = false) {
   const [error, setError] = useState<string | null>(null);
   const isConnecting = useRef(false);
   const reconnectTimer = useRef<number>();
-  const lastConnectionAttempt = useRef<number>(0);
+  // const lastConnectionAttempt = useRef<number>(0);
 
   const clearTimeouts = useCallback(() => {
     if (reconnectingTimeout.current) {

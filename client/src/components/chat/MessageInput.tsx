@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPresignedUrl } from '../../services/upload';
 
-const MAX_PREVIEW_SIZE = 300; // pixels
+// const MAX_PREVIEW_SIZE = 300; // pixels
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface FilePreview {
