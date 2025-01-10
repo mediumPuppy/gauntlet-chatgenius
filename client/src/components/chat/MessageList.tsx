@@ -12,15 +12,33 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
   // const navigate = useNavigate();
   const { token, user } = useAuth();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const reactions = message.reactions || {};
   const [showAbove, setShowAbove] = useState(false);
   const messageRef = useRef<HTMLDivElement>(null);
 
+  // Parse reactions if they're a string, or use as-is if they're an object
+  const reactions = useMemo(() => {
+    if (!message.reactions) return {};
+    if (typeof message.reactions === 'string') {
+      try {
+        return JSON.parse(message.reactions);
+      } catch (e) {
+        console.error('Failed to parse reactions:', e);
+        return {};
+      }
+    }
+    return message.reactions;
+  }, [message.reactions]);
+
+  console.log('Message:', message.id, {
+    rawReactions: message.reactions,
+    parsedReactions: reactions
+  });
+
   const handleEmojiSelect = async (emoji: any) => {
     try {
+      console.log('Selected emoji:', emoji.native);
       await addReaction(token!, message.id, emoji.native);
       setShowEmojiPicker(false);
-      // WebSocket will handle the update
     } catch (error) {
       console.error('Failed to add reaction:', error);
     }
@@ -28,6 +46,7 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
 
   const handleReactionClick = async (emoji: string) => {
     try {
+      console.log('Clicking reaction:', emoji);
       await addReaction(token!, message.id, emoji);
     } catch (error) {
       console.error('Failed to toggle reaction:', error);
@@ -94,61 +113,58 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
   }, [showEmojiPicker, updatePickerPosition]);
 
   return (
-    <div ref={messageRef} className="flex items-start space-x-3 p-2 hover:bg-gray-50 group relative">
-      <div className="flex-shrink-0">
-        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
-          {message.senderName[0].toUpperCase()}
-        </div>
+    <div ref={messageRef} className="relative group">
+      <div className="flex items-baseline space-x-2">
+        <span className="font-medium text-gray-900">{message.senderName}</span>
+        <span className="text-sm text-gray-500">
+          {new Date(message.timestamp).toLocaleTimeString()}
+        </span>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline space-x-2">
-          <span className="font-medium text-gray-900">{message.senderName}</span>
-          <span className="text-sm text-gray-500">
-            {new Date(message.timestamp).toLocaleTimeString()}
-          </span>
-        </div>
-        {renderContent(message.content)}
-        
-        {/* Add reactions bar */}
-        <div className="mt-2 flex flex-wrap gap-1">
-          {Object.entries(reactions).map(([emoji, users]) => (
+      {renderContent(message.content)}
+      
+      {/* Add reactions bar */}
+      <div className="mt-2 flex flex-wrap gap-1">
+        {Object.entries(reactions).map(([emoji, users]) => {
+          // Ensure users is always an array
+          const userArray = Array.isArray(users) ? users : [];
+          return (
             <button
               key={emoji}
               onClick={() => handleReactionClick(emoji)}
               className={`inline-flex items-center px-2 py-1 rounded-full text-xs
-                ${users.includes(user?.id || '') ? 'bg-primary-100' : 'bg-gray-100'}
+                ${userArray.includes(user?.id || '') ? 'bg-primary-100' : 'bg-gray-100'}
                 hover:bg-primary-200 transition-colors`}
             >
               <span>{emoji}</span>
-              <span className="ml-1">{users.length}</span>
+              <span className="ml-1">{userArray.length}</span>
             </button>
-          ))}
-          
-          <button
-            onClick={() => setShowEmojiPicker(true)}
-            className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 
-              hover:bg-gray-200 transition-colors"
-          >
-            <span>+</span>
-          </button>
-        </div>
-
-        {showEmojiPicker && (
-          <div className={`absolute z-50 ${showAbove ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
-            <div 
-              className="fixed inset-0" 
-              onClick={() => setShowEmojiPicker(false)}
-            />
-            <Picker
-              data={data}
-              onEmojiSelect={handleEmojiSelect}
-              theme="light"
-              previewPosition="none"
-              skinTonePosition="none"
-            />
-          </div>
-        )}
+          );
+        })}
+        
+        <button
+          onClick={() => setShowEmojiPicker(true)}
+          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 
+            hover:bg-gray-200 transition-colors"
+        >
+          <span>+</span>
+        </button>
       </div>
+
+      {showEmojiPicker && (
+        <div className={`absolute z-50 ${showAbove ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+          <div 
+            className="fixed inset-0" 
+            onClick={() => setShowEmojiPicker(false)}
+          />
+          <Picker
+            data={data}
+            onEmojiSelect={handleEmojiSelect}
+            theme="light"
+            previewPosition="none"
+            skinTonePosition="none"
+          />
+        </div>
+      )}
 
       {/* Thread button - visible on hover */}
       {message.hasReplies ? (

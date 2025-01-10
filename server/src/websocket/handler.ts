@@ -287,7 +287,7 @@ export class WebSocketHandler {
     }
   }
 
-  private async handleReaction(ws: WebSocketClient, data: any) {
+  public async handleReaction(ws: WebSocketClient | null, data: any) {
     try {
       const { messageId, emoji, action } = data;
       
@@ -298,7 +298,7 @@ export class WebSocketHandler {
       );
 
       if (message.rows.length === 0) {
-        ws.send(JSON.stringify({ type: 'error', error: 'Message not found' }));
+        ws?.send(JSON.stringify({ type: 'error', error: 'Message not found' }));
         return;
       }
 
@@ -309,7 +309,7 @@ export class WebSocketHandler {
         await this.broadcastToChannel(channel_id, {
           type: 'reaction',
           messageId,
-          userId: ws.userId,
+          userId: ws?.userId,
           emoji,
           action
         } as ReactionMessage);
@@ -317,14 +317,14 @@ export class WebSocketHandler {
         await this.broadcastToDM(dm_id, {
           type: 'reaction',
           messageId,
-          userId: ws.userId,
+          userId: ws?.userId,
           emoji,
           action
         } as ReactionMessage);
       }
     } catch (error) {
       console.error('Error handling reaction:', error);
-      ws.send(JSON.stringify({ type: 'error', error: 'Failed to process reaction' }));
+      ws?.send(JSON.stringify({ type: 'error', error: 'Failed to process reaction' }));
     }
   }
 

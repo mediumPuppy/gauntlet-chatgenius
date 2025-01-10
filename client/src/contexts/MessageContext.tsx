@@ -245,21 +245,34 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
 
         case 'reaction': {
           const { messageId, userId, emoji, action } = data;
-          setMessages(prev => prev.map(msg => {
-            if (msg.id !== messageId) return msg;
-            
-            const reactions = { ...msg.reactions } || {};
-            if (action === 'added') {
-              reactions[emoji] = [...(reactions[emoji] || []), userId];
-            } else {
-              reactions[emoji] = reactions[emoji]?.filter(id => id !== userId) || [];
-              if (reactions[emoji]?.length === 0) {
-                delete reactions[emoji];
+          console.log('Handling reaction event:', { messageId, userId, emoji, action });
+          
+          setMessages(prev => {
+            return prev.map(msg => {
+              if (msg.id !== messageId) return msg;
+              
+              // Create a new reactions object if it doesn't exist
+              const currentReactions = { ...(msg.reactions || {}) };
+              console.log('Current reactions before update:', currentReactions);
+              
+              if (action === 'added') {
+                // Create new array if emoji doesn't exist
+                const currentUsers = currentReactions[emoji] || [];
+                currentReactions[emoji] = [...currentUsers, userId];
+              } else {
+                // Remove user from the emoji's users array
+                if (currentReactions[emoji]) {
+                  currentReactions[emoji] = currentReactions[emoji].filter(id => id !== userId);
+                  if (currentReactions[emoji].length === 0) {
+                    delete currentReactions[emoji];
+                  }
+                }
               }
-            }
-            
-            return { ...msg, reactions };
-          }));
+              
+              console.log('Updated reactions:', currentReactions);
+              return { ...msg, reactions: currentReactions };
+            });
+          });
           break;
         }
       }

@@ -19,6 +19,8 @@ export async function addReaction(req: AuthRequest, res: Response) {
       [messageId, userId, emoji]
     );
 
+    let action: 'added' | 'removed';
+    
     if (existingReaction.rows.length > 0) {
       // If reaction exists, remove it
       await pool.query(
@@ -26,17 +28,37 @@ export async function addReaction(req: AuthRequest, res: Response) {
          WHERE message_id = $1 AND user_id = $2 AND emoji = $3`,
         [messageId, userId, emoji]
       );
-      return res.json({ success: true, action: 'removed' });
+      action = 'removed';
     } else {
       // If reaction doesn't exist, add it
-      const result = await pool.query(
+      await pool.query(
         `INSERT INTO message_reactions (message_id, user_id, emoji)
          VALUES ($1, $2, $3)
          RETURNING *`,
         [messageId, userId, emoji]
       );
-      return res.status(201).json({ ...result.rows[0], action: 'added' });
+      action = 'added';
     }
+
+    // Get the channel/DM ID for this message
+    const message = await pool.query(
+      'SELECT channel_id, dm_id FROM messages WHERE id = $1',
+      [messageId]
+    );
+
+    if (message.rows.length > 0) {
+      const { channel_id, dm_id } = message.rows[0];
+      // Emit WebSocket event
+      global.wss?.handleReaction(null, {
+        type: 'reaction',
+        messageId,
+        userId,
+        emoji,
+        action
+      });
+    }
+
+    return res.json({ success: true, action });
   } catch (err) {
     console.error('Error toggling reaction:', err);
     return res.status(500).json({ error: 'Failed to toggle reaction' });

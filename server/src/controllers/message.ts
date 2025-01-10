@@ -12,6 +12,9 @@ interface Message {
   sender_name: string;
   timestamp: Date;
   created_at: Date;
+  reactions: any;
+  has_replies?: boolean;
+  reply_count?: number;
 }
 
 export const createMessage = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -146,9 +149,17 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
       messages = await pool.query(
         `SELECT 
           m.*,
-          u.username as sender_name
+          u.username as sender_name,
+          COALESCE(
+            json_object_agg(
+              mr.emoji,
+              json_agg(mr.user_id)
+            ) FILTER (WHERE mr.emoji IS NOT NULL),
+            '{}'::json
+          ) as reactions
          FROM messages m
          JOIN users u ON m.user_id = u.id
+         LEFT JOIN message_reactions mr ON m.id = mr.message_id
          WHERE m.dm_id = $1
          AND m.parent_id IS NULL
          AND EXISTS (
@@ -156,6 +167,7 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
            WHERE dm.id = m.dm_id
            AND (dm.user1_id = $2 OR dm.user2_id = $2)
          )
+         GROUP BY m.id, u.username
          ORDER BY m.created_at DESC
          LIMIT 50`,
         [dmId, userId]
@@ -163,20 +175,37 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
     } else {
       // Verify user is part of the channel and get messages
       messages = await pool.query(
-        `SELECT 
+        `WITH reaction_groups AS (
+          SELECT 
+            message_id,
+            emoji,
+            array_agg(user_id::text) as user_ids
+          FROM message_reactions
+          GROUP BY message_id, emoji
+        )
+        SELECT 
           m.*,
-          u.username as sender_name
-         FROM messages m
-         JOIN users u ON m.user_id = u.id
-         WHERE m.channel_id = $1
-         AND m.parent_id IS NULL
-         AND EXISTS (
-           SELECT 1 FROM channel_members cm
-           WHERE cm.channel_id = m.channel_id
-           AND cm.user_id = $2
-         )
-         ORDER BY m.created_at DESC
-         LIMIT 50`,
+          u.username as sender_name,
+          COALESCE(
+            jsonb_object_agg(
+              rg.emoji,
+              rg.user_ids
+            ) FILTER (WHERE rg.emoji IS NOT NULL),
+            '{}'::jsonb
+          ) as reactions
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        LEFT JOIN reaction_groups rg ON m.id = rg.message_id
+        WHERE m.channel_id = $1 
+        AND m.parent_id IS NULL
+        AND EXISTS (
+          SELECT 1 FROM channel_members cm
+          WHERE cm.channel_id = m.channel_id
+          AND cm.user_id = $2
+        )
+        GROUP BY m.id, u.username, m.created_at, m.content, m.user_id, m.channel_id, m.dm_id
+        ORDER BY m.created_at DESC
+        LIMIT 50`,
         [channelId, userId]
       );
     }
@@ -188,7 +217,10 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
       channelId: msg.channel_id,
       dmId: msg.dm_id,
       senderName: msg.sender_name,
-      timestamp: msg.created_at
+      timestamp: msg.created_at,
+      reactions: msg.reactions,
+      hasReplies: msg.has_replies,
+      replyCount: msg.reply_count
     }));
 
     res.json(formattedMessages.reverse()); // Return in chronological order
@@ -228,15 +260,33 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
 
     // 1. Fetch the parent message and check channel membership
     const parentResult = await pool.query(
-      `SELECT m.*, u.username as sender_name
-       FROM messages m
-       JOIN users u ON m.user_id = u.id
-       WHERE m.id = $1
-       AND EXISTS (
-         SELECT 1 FROM channel_members cm
-         WHERE cm.channel_id = m.channel_id
-         AND cm.user_id = $2
-       )`,
+      `WITH reaction_counts AS (
+        SELECT 
+          message_id,
+          jsonb_object_agg(emoji, user_ids) as reactions
+        FROM (
+          SELECT 
+            message_id,
+            emoji,
+            jsonb_agg(user_id) as user_ids
+          FROM message_reactions
+          GROUP BY message_id, emoji
+        ) t
+        GROUP BY message_id
+      )
+      SELECT 
+        m.*, 
+        u.username as sender_name,
+        COALESCE(rc.reactions, '{}'::jsonb) as reactions
+      FROM messages m
+      JOIN users u ON m.user_id = u.id
+      LEFT JOIN reaction_counts rc ON m.id = rc.message_id
+      WHERE m.id = $1
+      AND EXISTS (
+        SELECT 1 FROM channel_members cm 
+        WHERE cm.channel_id = m.channel_id 
+        AND cm.user_id = $2
+      )`,
       [messageId, userId]
     );
 
