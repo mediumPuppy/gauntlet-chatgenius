@@ -14,76 +14,34 @@ interface ThreadPanelProps {
 }
 
 export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
-  const [parent, setParent] = useState<MessageType | null>(null);
-  const [replies, setReplies] = useState<MessageType[]>([]);
   const { token } = useAuth();
   const { messages } = useMessages();
+  
+  // Get parent message and replies from the messages array
+  const parent = messages.find(msg => msg.id === messageId);
+  const replies = messages.filter(msg => msg.parentId === messageId)
+    .sort((a, b) => a.timestamp - b.timestamp);
 
-  // Initial fetch of thread data
+  // Initial fetch only if parent isn't in messages
   useEffect(() => {
     async function fetchThread() {
-      try {
-        const res = await fetch(`${API_URL}/messages/thread/${messageId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!res.ok) {
-          throw new Error(`Failed to fetch thread: ${res.status}`);
+      if (!parent) {
+        try {
+          const res = await fetch(`${API_URL}/messages/thread/${messageId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) throw new Error(`Failed to fetch thread: ${res.status}`);
+          const data = await res.json();
+          // The parent and replies will be added to messages via WebSocket
+        } catch (error) {
+          console.error('Error fetching thread:', error);
         }
-        
-        const data = await res.json();
-        setParent(data.parent);
-        setReplies(data.replies);
-      } catch (error) {
-        console.error('Error fetching thread:', error);
       }
     }
     if (messageId && token) {
       fetchThread();
     }
-  }, [messageId, token]);
-
-  // Update replies when new messages or reactions come in
-  useEffect(() => {
-    // Get all messages that belong to this thread
-    const threadMessages = messages.filter(msg => msg.parentId === messageId);
-    
-    // Merge existing replies with new messages
-    setReplies(prevReplies => {
-      const existingIds = new Set(prevReplies.map(reply => reply.id));
-      const newReplies = threadMessages.filter(msg => !existingIds.has(msg.id));
-      
-      if (newReplies.length > 0) {
-        return [...prevReplies, ...newReplies].sort((a, b) => {
-          const timeA = new Date(a.timestamp).getTime();
-          const timeB = new Date(b.timestamp).getTime();
-          return timeA - timeB;
-        });
-      }
-      return prevReplies;
-    });
-
-    // Update parent message if it exists in the messages array
-    const updatedParent = messages.find(msg => msg.id === messageId);
-    if (updatedParent && parent) {
-      // Only update specific fields to avoid infinite loop
-      const hasChanges = 
-        updatedParent.reactions !== parent.reactions ||
-        updatedParent.replyCount !== parent.replyCount ||
-        updatedParent.hasReplies !== parent.hasReplies;
-
-      if (hasChanges) {
-        setParent(current => ({
-          ...current!,
-          reactions: updatedParent.reactions || {},
-          replyCount: updatedParent.replyCount,
-          hasReplies: updatedParent.hasReplies
-        }));
-      }
-    }
-  }, [messages, messageId]); // Remove parent from dependencies
+  }, [messageId, token, parent]);
 
   return (
     <div className="w-96 border-l border-gray-200 h-full flex flex-col bg-white">
@@ -114,15 +72,13 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
       </div>
 
       {parent && (
-        <MessageProvider channelId={parent.channelId || ''} isDM={false}>
-          <div className="p-4 border-t border-gray-200">
-            <MessageInput 
-              parentId={messageId}
-              placeholder={`Reply to thread...`}
-              isThread={true}
-            />
-          </div>
-        </MessageProvider>
+        <div className="p-4 border-t border-gray-200">
+          <MessageInput 
+            parentId={messageId}
+            placeholder="Reply to thread..."
+            isThread={true}
+          />
+        </div>
       )}
     </div>
   );

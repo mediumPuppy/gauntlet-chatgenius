@@ -18,7 +18,7 @@ const WS_URL = import.meta.env.VITE_WS_URL || DEFAULT_WS_URL;
 export const WS_MESSAGE_EVENT = 'ws-message';
 const wsEventEmitter = new EventTarget();
 
-export function useWebSocket(channelId: string, isDM = false) {
+export function useWebSocket(channelId: string, isDM = false, parentId?: string) {
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const reconnectTimer = useRef<number>();
@@ -56,6 +56,7 @@ export function useWebSocket(channelId: string, isDM = false) {
       globalWsState.connectedChannels.add(channelKey);
       
       // Send channel join message
+      console.log('Joining channel:', channelId);
       ws.current.send(JSON.stringify({
         type: 'join',
         channelId,
@@ -86,6 +87,8 @@ export function useWebSocket(channelId: string, isDM = false) {
           token,
           channelId,
           isDM,
+          isThread: !!parentId,
+          parentId,
         }));
       };
 
@@ -116,6 +119,7 @@ export function useWebSocket(channelId: string, isDM = false) {
       newWs.onmessage = (messageEvent) => {
         try {
           const data = JSON.parse(messageEvent.data);
+          console.log('WebSocket received:', data);
           wsEventEmitter.dispatchEvent(new CustomEvent(WS_MESSAGE_EVENT, { detail: data }));
         } catch (err) {
           console.error('Error parsing WebSocket message:', err);

@@ -237,9 +237,10 @@ export class WebSocketHandler {
 
   }
 
-  private async broadcastToChannel(channelId: string, message: WebSocketMessage) {
+  public async broadcastToChannel(channelId: string, data: any) {
+    console.log('Broadcasting to channel:', { channelId, data });
     const channelClients = clients.get(channelId) || new Set();
-    const messageStr = JSON.stringify(message);
+    const messageStr = JSON.stringify(data);
     
     channelClients.forEach(client => {
       if (client.readyState === client.OPEN) {
@@ -287,9 +288,13 @@ export class WebSocketHandler {
     console.log('handleReaction called with data:', data);
     try {
       if (data.channelId) {
+        console.log('Broadcasting reaction to channel:', data.channelId);
         await this.broadcastToChannel(data.channelId, data);
       } else if (data.dmId) {
+        console.log('Broadcasting reaction to DM:', data.dmId);
         await this.broadcastToDM(data.dmId, data);
+      } else {
+        console.error('No channelId or dmId provided for reaction:', data);
       }
     } catch (error) {
       console.error('Error in handleReaction:', error);

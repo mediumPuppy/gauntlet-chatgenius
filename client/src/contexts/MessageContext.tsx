@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { useWebSocket } from '../hooks/useWebSocket';
+import { useWebSocket, WS_MESSAGE_EVENT } from '../hooks/useWebSocket';
 import { useAuth } from './AuthContext';
 import { API_URL } from '../services/config';
 import { Message, TypingUser } from '../types/message';
@@ -49,19 +49,111 @@ interface RawMessage {
   reactions?: Record<string, string[]>;
 }
 
-export function MessageProvider({ children, channelId, isDM = false }: MessageProviderProps) {
+export function MessageProvider({ children, channelId, isDM = false, parentId }: MessageProviderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const { token, user } = useAuth();
   const processedMessageIds = useRef(new Set<string>());
-  const { 
-    isConnected, 
-    showReconnecting, 
-    error, 
-    sendMessage: wsSendMessage, 
-    sendTyping: wsSendTyping, 
-    eventEmitter 
-  } = useWebSocket(channelId, isDM);
+  const { isConnected, showReconnecting, error, sendMessage: wsSendMessage, 
+    sendTyping: wsSendTyping, eventEmitter } = useWebSocket(channelId, isDM, parentId);
+
+  const handleMessage = useCallback((event: Event) => {
+    const customEvent = event as CustomEvent;
+    const data = customEvent.detail;
+    console.log('MessageContext received event:', data);
+
+    switch (data.type) {
+      case 'message':
+        if (processedMessageIds.current.has(data.id)) return;
+        processedMessageIds.current.add(data.id);
+
+        setMessages(prev => {
+          // Always add new messages that belong to this thread
+          if (parentId && (data.parentId === parentId || data.id === parentId)) {
+            return [...prev, data];
+          }
+          
+          // For main view, handle thread updates
+          if (!parentId) {
+            if (data.parentId) {
+              return prev.map(msg => {
+                if (msg.id === data.parentId) {
+                  return {
+                    ...msg,
+                    hasReplies: true,
+                    replyCount: (msg.replyCount || 0) + 1
+                  };
+                }
+                return msg;
+              });
+            }
+            return [...prev, data];
+          }
+          
+          return prev;
+        });
+        break;
+
+      case 'reaction':
+        const { messageId, userId, emoji, action, parentId: incomingParentId } = data;
+        console.log('Processing reaction:', { messageId, userId, emoji, action, incomingParentId });
+        setMessages(prev => {
+          console.log('Current messages:', prev.length);
+          return prev.map(msg => {
+            // Case 1: Direct match with the message
+            if (msg.id === messageId) {
+              const currentReactions = { ...(msg.reactions || {}) };
+              if (action === 'added') {
+                if (!currentReactions[emoji]) {
+                  currentReactions[emoji] = [];
+                }
+                if (!currentReactions[emoji].includes(userId)) {
+                  currentReactions[emoji] = [...currentReactions[emoji], userId];
+                }
+              } else {
+                currentReactions[emoji] = (currentReactions[emoji] || [])
+                  .filter(id => id !== userId);
+                if (currentReactions[emoji]?.length === 0) {
+                  delete currentReactions[emoji];
+                }
+              }
+              return { ...msg, reactions: currentReactions };
+            }
+            
+            // Case 2: If we're in thread view and this is the parent message
+            if (parentId && msg.id === parentId && messageId === parentId) {
+              const currentReactions = { ...(msg.reactions || {}) };
+              if (action === 'added') {
+                if (!currentReactions[emoji]) {
+                  currentReactions[emoji] = [];
+                }
+                if (!currentReactions[emoji].includes(userId)) {
+                  currentReactions[emoji] = [...currentReactions[emoji], userId];
+                }
+              } else {
+                currentReactions[emoji] = (currentReactions[emoji] || [])
+                  .filter(id => id !== userId);
+                if (currentReactions[emoji]?.length === 0) {
+                  delete currentReactions[emoji];
+                }
+              }
+              return { ...msg, reactions: currentReactions };
+            }
+            
+            return msg;
+          });
+        });
+        break;
+    }
+  }, [parentId]);
+
+  // Handle WebSocket events
+  useEffect(() => {
+    eventEmitter.addEventListener('ws-message', handleMessage as EventListener);
+    return () => {
+      eventEmitter.removeEventListener('ws-message', handleMessage as EventListener);
+    };
+  }, [eventEmitter, handleMessage]);
 
   // Wrap sendMessage to also update local state
   const sendMessage = useCallback((content: string, parentId?: string) => {
@@ -115,7 +207,9 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
             parentId: msg.parent_id || msg.parentId,
             hasReplies: msg.has_replies || msg.hasReplies || false,
             replyCount: msg.reply_count || msg.replyCount || 0,
-            reactions: msg.reactions || {}
+            reactions: typeof msg.reactions === 'string' 
+              ? JSON.parse(msg.reactions) 
+              : (msg.reactions || {})
           }));
 
           transformedMessages.forEach((msg: Message) => {
@@ -137,92 +231,6 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
       processedMessageIds.current.clear();
     };
   }, [channelId, token, isDM]);
-
-  // Handle WebSocket events
-  useEffect(() => {
-    const handleMessage = (event: CustomEvent) => {
-      const data = event.detail;
-
-      switch (data.type) {
-        case 'message': {
-          if (processedMessageIds.current.has(data.id)) {
-            return;
-          }
-
-          const newMessage: Message = {
-            id: data.id,
-            content: data.content,
-            userId: data.userId,
-            channelId: data.channelId,
-            senderName: data.senderName,
-            timestamp: data.timestamp,
-            parentId: data.parentId,
-            reactions: {}
-          };
-
-          processedMessageIds.current.add(data.id);
-          setMessages(prev => [...prev, newMessage]);
-          break;
-        }
-
-        case 'typing': {
-          const typingUserId = data.userId;
-          if (typingUserId === user?.id) return;
-
-          setTypingUsers(prev => {
-            if (prev.some(u => u.userId === typingUserId)) {
-              return prev;
-            }
-            return [...prev, {
-              userId: typingUserId,
-              username: data.username
-            }];
-          });
-
-          setTimeout(() => {
-            setTypingUsers(prev => prev.filter(u => u.userId !== typingUserId));
-          }, 3000);
-          break;
-        }
-
-        case 'reaction': {
-          const { messageId, userId, emoji, action } = data;
-          console.log('Handling reaction event:', { messageId, userId, emoji, action });
-          
-          setMessages(prev => {
-            return prev.map(msg => {
-              if (msg.id === messageId) {
-                const currentReactions = { ...(msg.reactions || {}) };
-                if (action === 'added') {
-                  currentReactions[emoji] = [
-                    ...(currentReactions[emoji] || []),
-                    userId
-                  ];
-                } else {
-                  if (currentReactions[emoji]) {
-                    currentReactions[emoji] = currentReactions[emoji].filter(
-                      (id: string) => id !== userId
-                    );
-                    if (currentReactions[emoji].length === 0) {
-                      delete currentReactions[emoji];
-                    }
-                  }
-                }
-                return { ...msg, reactions: currentReactions };
-              }
-              return msg;
-            });
-          });
-          break;
-        }
-      }
-    };
-
-    eventEmitter.addEventListener('ws-message', handleMessage as EventListener);
-    return () => {
-      eventEmitter.removeEventListener('ws-message', handleMessage as EventListener);
-    };
-  }, [eventEmitter, user?.id]);
 
   const sendTyping = useCallback(() => {
     wsSendTyping();
