@@ -1,14 +1,9 @@
 import { Pool } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
+import { config } from '../config/database';
 
-const pool = new Pool({
-  user: process.env.PGUSER ||  'chatgenius',
-  host: process.env.PGHOST || 'localhost',
-  database: process.env.PGDATABASE || 'chatgenius',
-  password: process.env.PGPASSWORD || 'chatgenius',
-  port: parseInt(process.env.PGPORT || '5432'),
-});
+const pool = new Pool(config);
 
 async function runMigration() {
   try {

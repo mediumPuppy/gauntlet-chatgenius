@@ -1,15 +1,10 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { config } from './database';
 
 dotenv.config();
 
-const pool = new Pool({
-  user: process.env.PGUSER || 'chatgenius',
-  host: process.env.PGHOST || 'localhost',
-  database: process.env.PGDATABASE || 'chatgenius',
-  password: process.env.PGPASSWORD || 'chatgenius',
-  port: parseInt(process.env.PGPORT || '5432'),
-});
+const pool = new Pool(config);
 
 // Test the connection
 pool.connect((err, client, release) => {

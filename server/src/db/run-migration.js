@@ -39,13 +39,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var pg_1 = require("pg");
 var fs = require("fs");
 var path = require("path");
-var pool = new pg_1.Pool({
-    user: process.env.PGUSER || 'chatgenius',
-    host: process.env.PGHOST || 'localhost',
-    database: process.env.PGDATABASE || 'chatgenius',
-    password: process.env.PGPASSWORD || 'chatgenius',
-    port: parseInt(process.env.PGPORT || '5432'),
-});
+var database_1 = require("../config/database");
+
+var pool = new pg_1.Pool(database_1.config);
+
 function runMigration() {
     return __awaiter(this, void 0, void 0, function () {
         var migrationPath, sql, error_1;
