@@ -243,28 +243,23 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
           
           setMessages(prev => {
             return prev.map(msg => {
-              // Check if this is the message that got the reaction
-              // OR if this is a parent message that contains the reacted message in its thread
-              if (msg.id === messageId || (msg.hasReplies && data.parentId === msg.id)) {
-                // Create a new reactions object if it doesn't exist
+              if (msg.id === messageId) {
                 const currentReactions = { ...(msg.reactions || {}) };
-                console.log('Current reactions before update:', currentReactions);
-                
                 if (action === 'added') {
-                  // Create new array if emoji doesn't exist
-                  const currentUsers = currentReactions[emoji] || [];
-                  currentReactions[emoji] = [...currentUsers, userId];
+                  currentReactions[emoji] = [
+                    ...(currentReactions[emoji] || []),
+                    userId
+                  ];
                 } else {
-                  // Remove user from the emoji's users array
                   if (currentReactions[emoji]) {
-                    currentReactions[emoji] = currentReactions[emoji].filter(id => id !== userId);
+                    currentReactions[emoji] = currentReactions[emoji].filter(
+                      (id: string) => id !== userId
+                    );
                     if (currentReactions[emoji].length === 0) {
                       delete currentReactions[emoji];
                     }
                   }
                 }
-                
-                console.log('Updated reactions:', currentReactions);
                 return { ...msg, reactions: currentReactions };
               }
               return msg;

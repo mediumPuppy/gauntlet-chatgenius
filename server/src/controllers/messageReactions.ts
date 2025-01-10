@@ -4,6 +4,12 @@ import { AuthRequest } from '../middleware/auth';
 
 export async function addReaction(req: AuthRequest, res: Response) {
   try {
+    console.log('7. Server addReaction called with:', {
+      messageId: req.params.messageId,
+      emoji: req.body.emoji,
+      userId: req.user?.id
+    });
+
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -48,15 +54,31 @@ export async function addReaction(req: AuthRequest, res: Response) {
 
     if (message.rows.length > 0) {
       const { channel_id, dm_id, parent_id } = message.rows[0];
+      console.log('8. Found message:', { channel_id, dm_id, parent_id });
+      console.log('9. Broadcasting reaction event', { 
+        messageId, userId, emoji, action 
+      });
+      
       // Emit WebSocket event
+      if (!global.wss) {
+        console.error('10. ERROR: global.wss is undefined!');
+      } else {
+        console.log('10. global.wss exists, calling handleReaction');
+      }
+
       global.wss?.handleReaction(null, {
         type: 'reaction',
         messageId,
         userId,
         emoji,
         action,
-        parentId: parent_id
+        parentId: parent_id,
+        channelId: channel_id,
+        dmId: dm_id
       });
+
+      console.log('11. After handleReaction call');
+      return res.json({ success: true, action });
     }
 
     return res.json({ success: true, action });

@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Message as MessageType } from '../../types/message';
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
-import { addReaction } from '../../services/reactions';
+import { toggleReaction } from '../../services/reactions';
 // import { useNavigate } from 'react-router-dom';
   
 // Memoized Message component
@@ -29,10 +29,14 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
 
   const handleEmojiSelect = async (emoji: any) => {
     try {
-      console.log('Selected emoji full object:', emoji);
-      console.log('Selected emoji native:', emoji.native);
-      await addReaction(token!, message.id, emoji.native);
-      setShowEmojiPicker(false);
+      console.log('1. handleEmojiSelect called with:', emoji);
+      console.log('2. About to call toggleReaction with:', {
+        token: token?.substring(0, 10) + '...',
+        messageId: message.id,
+        emoji: emoji.native
+      });
+      await toggleReaction(token!, message.id, emoji.native);
+      console.log('3. toggleReaction completed successfully');
     } catch (error) {
       console.error('Failed to add reaction:', error);
     }
@@ -40,8 +44,10 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
 
   const handleReactionClick = async (emoji: string) => {
     try {
-      console.log('Clicking reaction:', emoji);
-      await addReaction(token!, message.id, emoji);
+      console.log('Toggling reaction:', emoji);
+      await toggleReaction(token!, message.id, emoji);
+      // No need to manually set local state if 
+      // you prefer to rely on the WebSocket "reaction" event
     } catch (error) {
       console.error('Failed to toggle reaction:', error);
     }
