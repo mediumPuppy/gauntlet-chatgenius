@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Message as MessageType } from '../../types/message';
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
-import { addReaction, removeReaction } from '../../services/reactions';
+import { addReaction } from '../../services/reactions';
 // import { useNavigate } from 'react-router-dom';
   
 // Memoized Message component
@@ -14,29 +14,19 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAbove, setShowAbove] = useState(false);
   const messageRef = useRef<HTMLDivElement>(null);
+  const plusButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Parse reactions if they're a string, or use as-is if they're an object
+
+  // Update the reactions useMemo with better logging
   const reactions = useMemo(() => {
     if (!message.reactions) return {};
-    if (typeof message.reactions === 'string') {
-      try {
-        return JSON.parse(message.reactions);
-      } catch (e) {
-        console.error('Failed to parse reactions:', e);
-        return {};
-      }
-    }
     return message.reactions;
   }, [message.reactions]);
 
-  console.log('Message:', message.id, {
-    rawReactions: message.reactions,
-    parsedReactions: reactions
-  });
-
   const handleEmojiSelect = async (emoji: any) => {
     try {
-      console.log('Selected emoji:', emoji.native);
+      console.log('Selected emoji full object:', emoji);
+      console.log('Selected emoji native:', emoji.native);
       await addReaction(token!, message.id, emoji.native);
       setShowEmojiPicker(false);
     } catch (error) {
@@ -90,7 +80,7 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
       );
     }
 
-    return <p className="text-gray-800">{content}</p>;
+    return <p className="text-gray-800 emoji">{content}</p>;
   };
 
   // Add function to determine picker position
@@ -112,8 +102,15 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
     }
   }, [showEmojiPicker, updatePickerPosition]);
 
+  const handleClickOutside = (event: MouseEvent) => {
+    if (plusButtonRef.current?.contains(event.target as Node)) {
+      return;
+    }
+    setShowEmojiPicker(false);
+  };
+
   return (
-    <div ref={messageRef} className="relative group">
+    <div ref={messageRef} className="group relative flex flex-col hover:bg-gray-50 p-4">
       <div className="flex items-baseline space-x-2">
         <span className="font-medium text-gray-900">{message.senderName}</span>
         <span className="text-sm text-gray-500">
@@ -135,33 +132,30 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
                 ${userArray.includes(user?.id || '') ? 'bg-primary-100' : 'bg-gray-100'}
                 hover:bg-primary-200 transition-colors`}
             >
-              <span>{emoji}</span>
+              <span className="emoji">{emoji}</span>
               <span className="ml-1">{userArray.length}</span>
             </button>
           );
         })}
         
         <button
-          onClick={() => setShowEmojiPicker(true)}
-          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 
-            hover:bg-gray-200 transition-colors"
+          ref={plusButtonRef}
+          onClick={() => setShowEmojiPicker(prev => !prev)}
+          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 hover:bg-gray-200 transition-colors"
         >
           <span>+</span>
         </button>
       </div>
 
+      {/* Emoji picker */}
       {showEmojiPicker && (
-        <div className={`absolute z-50 ${showAbove ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
-          <div 
-            className="fixed inset-0" 
-            onClick={() => setShowEmojiPicker(false)}
-          />
+        <div 
+          className={`absolute z-10 ${showAbove ? 'bottom-full mb-2' : 'top-full mt-2'}`}
+        >
           <Picker
             data={data}
             onEmojiSelect={handleEmojiSelect}
-            theme="light"
-            previewPosition="none"
-            skinTonePosition="none"
+            onClickOutside={handleClickOutside}
           />
         </div>
       )}

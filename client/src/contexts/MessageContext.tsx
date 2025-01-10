@@ -46,6 +46,7 @@ interface RawMessage {
   hasReplies?: boolean;
   reply_count?: number;
   replyCount?: number;
+  reactions?: Record<string, string[]>;
 }
 
 interface ReactionEvent {
@@ -120,13 +121,14 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
             content: msg.content,
             userId: msg.userId || msg.user_id || msg.userid || msg.senderId,
             channelId: msg.channelId || msg.channel_id || channelId,
-            senderName: msg.senderName || msg.sender_name || msg. sendername || msg.username,
+            senderName: msg.senderName || msg.sender_name || msg.sendername || msg.username,
             timestamp: typeof msg.timestamp === 'string' 
               ? new Date(msg.timestamp).getTime() 
               : (msg.timestamp || new Date(msg.created_at || Date.now()).getTime()),
             parentId: msg.parent_id || msg.parentId,        // Add threading fields
             hasReplies: msg.has_replies || msg.hasReplies || false,
-            replyCount: msg.reply_count || msg.replyCount || 0
+            replyCount: msg.reply_count || msg.replyCount || 0,
+            reactions: msg.reactions || {}
           }));
 
           // Add all message IDs to processed set

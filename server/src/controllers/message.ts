@@ -151,11 +151,11 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
           m.*,
           u.username as sender_name,
           COALESCE(
-            json_object_agg(
+            jsonb_object_agg(
               mr.emoji,
-              json_agg(mr.user_id)
+              array_agg(mr.user_id::text)
             ) FILTER (WHERE mr.emoji IS NOT NULL),
-            '{}'::json
+            '{}'::jsonb
           ) as reactions
          FROM messages m
          JOIN users u ON m.user_id = u.id
@@ -210,22 +210,38 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
       );
     }
 
-    const formattedMessages = messages.rows.map((msg: Message) => ({
-      id: msg.id,
-      content: msg.content,
-      userId: msg.user_id,
-      channelId: msg.channel_id,
-      dmId: msg.dm_id,
-      senderName: msg.sender_name,
-      timestamp: msg.created_at,
-      reactions: msg.reactions,
-      hasReplies: msg.has_replies,
-      replyCount: msg.reply_count
-    }));
+    const formattedMessages = messages.rows.map((msg: Message) => {
 
-    res.json(formattedMessages.reverse()); // Return in chronological order
+      // Parse reactions if they're a string
+      let parsedReactions = msg.reactions;
+      if (typeof msg.reactions === 'string') {
+        try {
+          parsedReactions = JSON.parse(msg.reactions);
+        } catch (e) {
+          console.error('Failed to parse reactions for message:', msg.id, e);
+          parsedReactions = {};
+        }
+      }
+
+      const formatted = {
+        id: msg.id,
+        content: msg.content,
+        userId: msg.user_id,
+        channelId: msg.channel_id,
+        dmId: msg.dm_id,
+        senderName: msg.sender_name,
+        timestamp: msg.created_at,
+        reactions: parsedReactions || {},  // Ensure we always have an object
+        hasReplies: msg.has_replies,
+        replyCount: msg.reply_count
+      };
+
+      return formatted;
+    });
+
+    res.json(formattedMessages);
   } catch (error) {
-    console.error('Failed to get messages:', error);
+    console.error('Error getting messages:', error);
     res.status(500).json({ error: 'Failed to get messages' });
   }
 };

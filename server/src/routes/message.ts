@@ -12,6 +12,12 @@ router.get('/thread/:messageId', authenticateToken, getThreadMessages as Request
 router.get('/', authenticateToken, getMessages as RequestHandler);
 router.post('/', authenticateToken, createMessage as RequestHandler);
 
-router.post('/:messageId/reactions', authenticateToken, addReaction);
-router.delete('/:messageId/reactions', authenticateToken, removeReaction);
+router.post('/:messageId/reactions', authenticateToken, async (req, res) => {
+  await addReaction(req, res);
+});
+
+router.delete('/:messageId/reactions', authenticateToken, async (req, res) => {
+  await removeReaction(req, res);
+});
+
 export default router; 
