@@ -274,35 +274,36 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // 1. Fetch the parent message and check channel membership
+    // 1. Fetch the parent message with reactions
     const parentResult = await pool.query(
-      `WITH reaction_counts AS (
+      `WITH reaction_groups AS (
         SELECT 
           message_id,
-          jsonb_object_agg(emoji, user_ids) as reactions
-        FROM (
-          SELECT 
-            message_id,
-            emoji,
-            jsonb_agg(user_id) as user_ids
-          FROM message_reactions
-          GROUP BY message_id, emoji
-        ) t
-        GROUP BY message_id
+          emoji,
+          array_agg(user_id::text) as user_ids
+        FROM message_reactions
+        GROUP BY message_id, emoji
       )
       SELECT 
-        m.*, 
+        m.*,
         u.username as sender_name,
-        COALESCE(rc.reactions, '{}'::jsonb) as reactions
+        COALESCE(
+          jsonb_object_agg(
+            rg.emoji,
+            rg.user_ids
+          ) FILTER (WHERE rg.emoji IS NOT NULL),
+          '{}'::jsonb
+        ) as reactions
       FROM messages m
       JOIN users u ON m.user_id = u.id
-      LEFT JOIN reaction_counts rc ON m.id = rc.message_id
+      LEFT JOIN reaction_groups rg ON m.id = rg.message_id
       WHERE m.id = $1
       AND EXISTS (
         SELECT 1 FROM channel_members cm 
         WHERE cm.channel_id = m.channel_id 
         AND cm.user_id = $2
-      )`,
+      )
+      GROUP BY m.id, u.username`,
       [messageId, userId]
     );
 
@@ -310,22 +311,45 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Not authorized to view this thread' });
     }
 
+    const parentRow = parentResult.rows[0];
     const parent = {
-      id: parentResult.rows[0].id,
-      content: parentResult.rows[0].content,
-      userId: parentResult.rows[0].user_id,
-      channelId: parentResult.rows[0].channel_id,
-      senderName: parentResult.rows[0].sender_name,
-      timestamp: parentResult.rows[0].created_at
+      id: parentRow.id,
+      content: parentRow.content,
+      userId: parentRow.user_id,
+      channelId: parentRow.channel_id,
+      senderName: parentRow.sender_name,
+      timestamp: parentRow.created_at,
+      reactions: parentRow.reactions || {},
+      hasReplies: parentRow.has_replies,
+      replyCount: parentRow.reply_count
     };
 
-    // 2. Fetch replies
+    // 2. Fetch replies with reactions
     const repliesResult = await pool.query(
-      `SELECT m.*, u.username as sender_name
-       FROM messages m
-       JOIN users u ON m.user_id = u.id
-       WHERE m.parent_id = $1
-       ORDER BY m.created_at ASC`,
+      `WITH reaction_groups AS (
+        SELECT 
+          message_id,
+          emoji,
+          array_agg(user_id::text) as user_ids
+        FROM message_reactions
+        GROUP BY message_id, emoji
+      )
+      SELECT 
+        m.*,
+        u.username as sender_name,
+        COALESCE(
+          jsonb_object_agg(
+            rg.emoji,
+            rg.user_ids
+          ) FILTER (WHERE rg.emoji IS NOT NULL),
+          '{}'::jsonb
+        ) as reactions
+      FROM messages m
+      JOIN users u ON m.user_id = u.id
+      LEFT JOIN reaction_groups rg ON m.id = rg.message_id
+      WHERE m.parent_id = $1
+      GROUP BY m.id, u.username
+      ORDER BY m.created_at ASC`,
       [messageId]
     );
 
@@ -335,7 +359,9 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       userId: row.user_id,
       channelId: row.channel_id,
       senderName: row.sender_name,
-      timestamp: row.created_at
+      timestamp: row.created_at,
+      reactions: row.reactions || {},
+      parentId: row.parent_id
     }));
 
     res.json({ parent, replies });
