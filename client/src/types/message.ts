@@ -28,4 +28,5 @@ export interface WebSocketMessage {
   username?: string;
   token?: string;
   isDM?: boolean;
+  parentId?: string;
 }

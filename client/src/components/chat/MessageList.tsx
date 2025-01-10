@@ -2,17 +2,11 @@ import { useEffect, useRef, useState, useCallback, memo, useMemo } from 'react';
 import { useMessages } from '../../contexts/MessageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Message as MessageType } from '../../types/message';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
   
 // Memoized Message component
-const Message = memo(({ message }: { message: MessageType }) => {
-  const navigate = useNavigate();
-
-  // Define this function inside the component but outside of renderContent
-  function handleThreadClick() {
-    navigate(`/thread/${message.id}`);
-  }
-
+const Message = memo(({ message, onThreadClick }: { message: MessageType, onThreadClick: (threadId: string) => void }) => {
+  // const navigate = useNavigate();
   const renderContent = (content: string) => {
     // Check for image markdown syntax: ![alt](url)
     const imageMatch = content.match(/!\[(.*?)\]\((.*?)\)/);
@@ -70,17 +64,17 @@ const Message = memo(({ message }: { message: MessageType }) => {
         {renderContent(message.content)}
       </div>
 
-      {/* This button is hidden by default, visible on hover */}
-      {message.replyCount && message.replyCount > 0 ? (
+      {/* Thread button - visible on hover */}
+      {message.hasReplies ? (
         <button
-          onClick={handleThreadClick}
+          onClick={() => onThreadClick(message.id)}
           className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline ml-2"
         >
           Thread ({message.replyCount})
         </button>
       ) : (
         <button
-          onClick={handleThreadClick}
+          onClick={() => onThreadClick(message.id)}
           className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline ml-2"
         >
           Reply
@@ -137,7 +131,7 @@ const TypingIndicator = memo(({ typingUsers, currentUserId }: { typingUsers: any
 
 TypingIndicator.displayName = 'TypingIndicator';
 
-export function MessageList() {
+export function MessageList({ onThreadClick }: { onThreadClick: (id: string) => void }) {
   const { messages, typingUsers, showReconnecting } = useMessages();
   const { user } = useAuth();
   // const { currentChannel } = useChannels();
@@ -148,7 +142,9 @@ export function MessageList() {
 
   // Memoize sorted messages
   const sortedMessages = useMemo(() => 
-    [...messages].sort((a, b) => a.timestamp - b.timestamp),
+    [...messages]
+      .filter(msg => !msg.parentId) // Only show messages that aren't replies
+      .sort((a, b) => a.timestamp - b.timestamp),
     [messages]
   );
 
@@ -194,7 +190,11 @@ export function MessageList() {
       <div className="flex flex-col min-h-full justify-end">
         <div className="space-y-4">
           {sortedMessages.map(message => (
-            <Message key={message.id} message={message} />
+            <Message 
+              key={message.id} 
+              message={message} 
+              onThreadClick={onThreadClick}
+            />
           ))}
           <div className="h-6">
             <TypingIndicator typingUsers={typingUsers} currentUserId={user?.id} />

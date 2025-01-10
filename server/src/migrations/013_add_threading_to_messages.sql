@@ -1,12 +1,12 @@
--- Add columns for threading
-ALTER TABLE messages
-  ADD COLUMN parent_id UUID REFERENCES messages(id),
-  ADD COLUMN has_replies BOOLEAN DEFAULT false,
-  ADD COLUMN reply_count INT DEFAULT 0;
+-- Add columns for threading if they don't exist
+ALTER TABLE messages 
+  ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES messages(id),
+  ADD COLUMN IF NOT EXISTS has_replies BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS reply_count INT DEFAULT 0;
 
--- Create indexes
-CREATE INDEX idx_messages_parent_id ON messages(parent_id);
-CREATE INDEX idx_messages_has_replies ON messages(has_replies);
+-- Create indexes if they don't exist
+CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_id);
+CREATE INDEX IF NOT EXISTS idx_messages_has_replies ON messages(has_replies);
 
 -- (Optional) Update existing rows to set has_replies and reply_count 
 -- based on existing data. This part depends on the data you already have:

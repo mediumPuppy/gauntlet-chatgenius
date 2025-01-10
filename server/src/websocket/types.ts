@@ -30,6 +30,7 @@ export interface ChatMessage extends WebSocketMessage {
   senderId: string;
   senderName: string;
   isDM: boolean;
+  parentId?: string;
 }
 
 export interface TypingMessage extends WebSocketMessage {

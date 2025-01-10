@@ -155,7 +155,8 @@ export class WebSocketHandler {
         senderName: user.rows[0].username,
         timestamp: Date.now(),
         channelId: data.channelId,
-        isDM: data.isDM
+        isDM: data.isDM,
+        parentId: data.parentId
       };
 
       if (data.isDM) {
@@ -194,10 +195,10 @@ export class WebSocketHandler {
           return;
         }
 
-        // Save channel message
+        // Save channel message with parentId
         await pool.query(
-          'INSERT INTO messages (content, user_id, channel_id, created_at) VALUES ($1, $2, $3, NOW())',
-          [data.content, ws.userId, data.channelId]
+          "INSERT INTO messages (content, user_id, channel_id, parent_id, created_at) VALUES ($1, $2, $3, $4::uuid, NOW())",
+          [data.content, ws.userId, data.channelId, data.parentId || null]
         );
 
         // Broadcast to channel members

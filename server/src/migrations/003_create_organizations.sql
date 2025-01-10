@@ -1,5 +1,5 @@
 -- Create organizations table
-CREATE TABLE organizations (
+CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     created_by UUID NOT NULL REFERENCES users(id),
@@ -8,7 +8,7 @@ CREATE TABLE organizations (
 );
 
 -- Create organization members table
-CREATE TABLE organization_members (
+CREATE TABLE IF NOT EXISTS organization_members (
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
@@ -17,7 +17,7 @@ CREATE TABLE organization_members (
 );
 
 -- Create organization invites table
-CREATE TABLE organization_invites (
+CREATE TABLE IF NOT EXISTS organization_invites (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     invited_by UUID REFERENCES users(id),
@@ -28,9 +28,9 @@ CREATE TABLE organization_invites (
 );
 
 -- Add organization_id to channels table
-ALTER TABLE channels ADD COLUMN organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
 
--- Create index for faster lookups
-CREATE INDEX idx_org_members_user ON organization_members(user_id);
-CREATE INDEX idx_org_invites_code ON organization_invites(code);
-CREATE INDEX idx_channels_org ON channels(organization_id); 
+-- Create indexes if they don't exist
+CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_org_invites_code ON organization_invites(code);
+CREATE INDEX IF NOT EXISTS idx_channels_org ON channels(organization_id); 

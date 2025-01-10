@@ -29,6 +29,34 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
   }
 
   try {
+    let effectiveChannelId = channelId;
+
+    // If this is a thread reply, get the parent message's channel
+    if (parentId) {
+      const parentResult = await pool.query(
+        'SELECT channel_id FROM messages WHERE id = $1',
+        [parentId]
+      );
+      if (parentResult.rows.length === 0) {
+        res.status(404).json({ error: 'Parent message not found' });
+        return;
+      }
+      effectiveChannelId = parentResult.rows[0].channel_id;
+    }
+
+    // Now check channel membership with the correct channel ID
+    if (effectiveChannelId) {
+      const channelCheck = await pool.query(
+        'SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+        [effectiveChannelId, userId]
+      );
+      
+      if (channelCheck.rows.length === 0) {
+        res.status(403).json({ error: 'Not authorized to send messages in this channel' });
+        return;
+      }
+    }
+
     if (dmId) {
       // Verify user is part of the DM
       const dmCheck = await pool.query(
@@ -59,10 +87,10 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
 
     const messageId = uuidv4();
     const message = await pool.query(
-      `INSERT INTO messages (id, content, user_id, channel_id, dm_id, created_at) 
-       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+      `INSERT INTO messages (id, content, user_id, channel_id, dm_id, parent_id, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [messageId, content, userId, channelId, dmId, parentId || null]
+      [messageId, content, userId, effectiveChannelId, dmId, parentId]
     );
     // 2. If this is a reply (parentId provided), update parent counters
     if (parentId) {
@@ -192,28 +220,58 @@ export const getMainChatMessages = async (req: AuthRequest, res: Response) => {
 export const getThreadMessages = async (req: AuthRequest, res: Response) => {
   try {
     const { messageId } = req.params;
+    const userId = req.user?.id;
 
-    // 1. Fetch the parent message
-    const parentResult = await pool.query(
-      'SELECT * FROM messages WHERE id = $1',
-      [messageId]
-    );
-    if (parentResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Parent message not found' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
-    const parent = parentResult.rows[0];
+
+    // 1. Fetch the parent message and check channel membership
+    const parentResult = await pool.query(
+      `SELECT m.*, u.username as sender_name
+       FROM messages m
+       JOIN users u ON m.user_id = u.id
+       WHERE m.id = $1
+       AND EXISTS (
+         SELECT 1 FROM channel_members cm
+         WHERE cm.channel_id = m.channel_id
+         AND cm.user_id = $2
+       )`,
+      [messageId, userId]
+    );
+
+    if (parentResult.rows.length === 0) {
+      return res.status(403).json({ error: 'Not authorized to view this thread' });
+    }
+
+    const parent = {
+      id: parentResult.rows[0].id,
+      content: parentResult.rows[0].content,
+      userId: parentResult.rows[0].user_id,
+      channelId: parentResult.rows[0].channel_id,
+      senderName: parentResult.rows[0].sender_name,
+      timestamp: parentResult.rows[0].created_at
+    };
 
     // 2. Fetch replies
     const repliesResult = await pool.query(
-      `SELECT *
-       FROM messages
-       WHERE parent_id = $1
-       ORDER BY created_at ASC`,
+      `SELECT m.*, u.username as sender_name
+       FROM messages m
+       JOIN users u ON m.user_id = u.id
+       WHERE m.parent_id = $1
+       ORDER BY m.created_at ASC`,
       [messageId]
     );
-    const replies = repliesResult.rows;
 
-    // Combine
+    const replies = repliesResult.rows.map(row => ({
+      id: row.id,
+      content: row.content,
+      userId: row.user_id,
+      channelId: row.channel_id,
+      senderName: row.sender_name,
+      timestamp: row.created_at
+    }));
+
     res.json({ parent, replies });
   } catch (error) {
     console.error('Error fetching thread messages:', error);

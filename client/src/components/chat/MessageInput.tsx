@@ -14,7 +14,13 @@ interface FilePreview {
   type: 'image' | 'other';
 }
 
-export function MessageInput() {
+interface MessageInputProps {
+  parentId?: string;
+  placeholder?: string;
+  isThread?: boolean;
+}
+
+export function MessageInput({ parentId, placeholder, isThread = false }: MessageInputProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
@@ -94,7 +100,7 @@ export function MessageInput() {
     const messageText = newMessage.trim();
     
     // Don't send if we have no content AND no file
-    if ((!currentChannel && !dmId) || (!messageText && !filePreview)) return;
+    if ((!currentChannel && !dmId && !isThread) || (!messageText && !filePreview)) return;
 
     try {
       // If we have a file, upload it first
@@ -104,7 +110,8 @@ export function MessageInput() {
 
       // Only send text message if we have text
       if (messageText) {
-        sendMessage(messageText);
+        // Pass parentId when sending message in thread
+        sendMessage(messageText, parentId);
         setNewMessage('');
       }
     } catch (error) {
@@ -144,6 +151,9 @@ export function MessageInput() {
   };
 
   const getPlaceholder = () => {
+    if (placeholder) {
+      return placeholder;
+    }
     if (dmId) {
       return 'Type your message...';
     }
@@ -153,7 +163,7 @@ export function MessageInput() {
     return 'Select a conversation to start messaging';
   };
 
-  const isDisabled = !currentChannel && !dmId;
+  const isDisabled = (!currentChannel && !dmId && !isThread);
 
   return (
     <div className="h-auto min-h-[5rem] max-h-[12rem] border-t p-4">

@@ -12,6 +12,7 @@ import { API_URL } from '../services/config';
 import { usePresence } from '../contexts/PresenceContext';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { GlobalMessageSearch } from '../components/global/GlobalMessageSearch';
+import { ThreadPanel } from '../components/chat/ThreadPanel';
 
 interface DMInfo {
   id: string;
@@ -30,6 +31,7 @@ const ChatPageContent: React.FC = memo(() => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { token } = useAuth();
   const { isUserOnline } = usePresence();
+  const [activeThread, setActiveThread] = useState<string | null>(null);
 
   const fetchDMInfo = useCallback(async (id: string) => {
     if (!token) {
@@ -76,6 +78,8 @@ const ChatPageContent: React.FC = memo(() => {
   const handleLogout = useCallback(() => {
     setShowLogoutConfirm(true);
   }, []);
+
+  const handleCloseThread = () => setActiveThread(null);
 
   const renderHeader = useMemo(() => {
     if (currentDM) {
@@ -162,27 +166,34 @@ const ChatPageContent: React.FC = memo(() => {
       )}
 
       {/* Main Content */}
-      <main className={`
-        flex-1 mt-16 flex flex-col transition-all duration-300 ease-in-out
-        ${isSidebarOpen ? '' : 'ml-1'}
-      `}>
-        <div className="h-full p-4 lg:p-0 lg:ml-1">
-          {shouldShowWelcome && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <h3 className="text-xl font-semibold mb-2">Welcome to Chat</h3>
-              <p className="text-center">Select a channel or direct message from the sidebar to start chatting</p>
-            </div>
-          )}
-          {shouldShowChat && (
-            <div className="flex flex-col h-full">
-              <MessageList />
-              <MessageInput />
-            </div>
-          )}
+      <main className="flex-1 mt-16 flex">
+        <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? '' : 'ml-1'}`}>
+          <div className="h-full p-4 lg:p-0 lg:ml-1">
+            {shouldShowWelcome && (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <h3 className="text-xl font-semibold mb-2">Welcome to Chat</h3>
+                <p className="text-center">Select a channel or direct message from the sidebar to start chatting</p>
+              </div>
+            )}
+            {shouldShowChat && (
+              <div className="flex flex-col h-full">
+                <MessageList onThreadClick={setActiveThread} />
+                <MessageInput />
+              </div>
+            )}
+          </div>
         </div>
+        
+        {/* Thread Panel */}
+        {activeThread && (
+          <ThreadPanel 
+            messageId={activeThread} 
+            onClose={handleCloseThread}
+          />
+        )}
       </main>
 
       <ConfirmModal
