@@ -68,14 +68,22 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
     // Update parent message if it exists in the messages array
     const updatedParent = messages.find(msg => msg.id === messageId);
     if (updatedParent && parent) {
-      setParent(current => ({
-        ...current!,
-        reactions: updatedParent.reactions || {},
-        replyCount: updatedParent.replyCount,
-        hasReplies: updatedParent.hasReplies
-      }));
+      // Only update specific fields to avoid infinite loop
+      const hasChanges = 
+        updatedParent.reactions !== parent.reactions ||
+        updatedParent.replyCount !== parent.replyCount ||
+        updatedParent.hasReplies !== parent.hasReplies;
+
+      if (hasChanges) {
+        setParent(current => ({
+          ...current!,
+          reactions: updatedParent.reactions || {},
+          replyCount: updatedParent.replyCount,
+          hasReplies: updatedParent.hasReplies
+        }));
+      }
     }
-  }, [messages, messageId, parent]);
+  }, [messages, messageId]); // Remove parent from dependencies
 
   return (
     <div className="w-96 border-l border-gray-200 h-full flex flex-col bg-white">

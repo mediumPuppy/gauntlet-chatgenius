@@ -21,36 +21,51 @@ export async function searchMessages(req: AuthRequest, res: Response) {
     // and DM messages (where user is one of the participants)
     // Limiting to 50 results, sorted by descending creation time
     const query = `
-      (
-        SELECT
-          m.id,
-          m.content,
-          m.created_at AS "createdAt",
-          m.channel_id AS "channelId",
-          m.dm_id AS "dmId",
-          u.username AS "senderName"
-        FROM messages m
-        JOIN users u ON m.user_id = u.id
-        JOIN channel_members cm ON (cm.channel_id = m.channel_id AND cm.user_id = $2)
-        WHERE m.channel_id IS NOT NULL
-          AND m.content ILIKE $1
+      WITH RankedMessages AS (
+        (
+          SELECT
+            m.id,
+            m.content,
+            m.created_at AS "createdAt",
+            m.channel_id AS "channelId",
+            m.dm_id AS "dmId",
+            u.username AS "senderName",
+            c.name AS "channelName",
+            NULL AS "dmRecipientName",
+            ROW_NUMBER() OVER (PARTITION BY COALESCE(m.channel_id, m.dm_id) ORDER BY m.created_at) as "messageIndex"
+          FROM messages m
+          JOIN users u ON m.user_id = u.id
+          JOIN channels c ON c.id = m.channel_id
+          JOIN channel_members cm ON (cm.channel_id = m.channel_id AND cm.user_id = $2)
+          WHERE m.channel_id IS NOT NULL
+            AND m.content ILIKE $1
+        )
+        UNION ALL
+        (
+          SELECT
+            m.id,
+            m.content,
+            m.created_at AS "createdAt",
+            m.channel_id AS "channelId",
+            m.dm_id AS "dmId",
+            u.username AS "senderName",
+            NULL AS "channelName",
+            CASE 
+              WHEN dm.user1_id = $2 THEN u2.username
+              ELSE u1.username
+            END AS "dmRecipientName",
+            ROW_NUMBER() OVER (PARTITION BY m.dm_id ORDER BY m.created_at) as "messageIndex"
+          FROM messages m
+          JOIN users u ON m.user_id = u.id
+          JOIN direct_messages dm ON dm.id = m.dm_id
+          JOIN users u1 ON u1.id = dm.user1_id
+          JOIN users u2 ON u2.id = dm.user2_id
+          WHERE m.dm_id IS NOT NULL
+            AND (dm.user1_id = $2 OR dm.user2_id = $2)
+            AND m.content ILIKE $1
+        )
       )
-      UNION
-      (
-        SELECT
-          m.id,
-          m.content,
-          m.created_at AS "createdAt",
-          m.channel_id AS "channelId",
-          m.dm_id AS "dmId",
-          u.username AS "senderName"
-        FROM messages m
-        JOIN users u ON m.user_id = u.id
-        JOIN direct_messages dm ON dm.id = m.dm_id
-        WHERE m.dm_id IS NOT NULL
-          AND (dm.user1_id = $2 OR dm.user2_id = $2)
-          AND m.content ILIKE $1
-      )
+      SELECT * FROM RankedMessages
       ORDER BY "createdAt" DESC
       LIMIT 50
     `;

@@ -214,7 +214,7 @@ const ChatPageContent: React.FC = memo(() => {
               ✕
             </button>
             <h2 className="text-2xl font-bold mb-4">Search Messages</h2>
-            <GlobalMessageSearch />
+            <GlobalMessageSearch onClose={() => setIsSearchOpen(false)} />
           </div>
         </div>
       )}

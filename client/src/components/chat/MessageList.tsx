@@ -8,7 +8,11 @@ import { addReaction } from '../../services/reactions';
 // import { useNavigate } from 'react-router-dom';
   
 // Memoized Message component
-const Message = memo(({ message, onThreadClick }: { message: MessageType, onThreadClick: (threadId: string) => void }) => {
+const Message = memo(({ message, onThreadClick, isHighlighted }: { 
+  message: MessageType;
+  onThreadClick: (threadId: string) => void;
+  isHighlighted?: boolean;
+}) => {
   // const navigate = useNavigate();
   const { token, user } = useAuth();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -109,8 +113,18 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
     setShowEmojiPicker(false);
   };
 
+  useEffect(() => {
+    if (isHighlighted && messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isHighlighted]);
+
   return (
-    <div ref={messageRef} className="group relative flex flex-col hover:bg-gray-50 p-4">
+    <div 
+      ref={messageRef} 
+      className={`group relative flex flex-col p-4 transition-colors duration-300
+        ${isHighlighted ? 'bg-yellow-50' : 'hover:bg-gray-50'}`}
+    >
       <div className="flex items-baseline space-x-2">
         <span className="font-medium text-gray-900">{message.senderName}</span>
         <span className="text-sm text-gray-500">
@@ -230,11 +244,11 @@ TypingIndicator.displayName = 'TypingIndicator';
 export function MessageList({ onThreadClick }: { onThreadClick: (id: string) => void }) {
   const { messages, typingUsers, showReconnecting } = useMessages();
   const { user } = useAuth();
-  // const { currentChannel } = useChannels();
-  // const { dmId } = useParams<{ dmId?: string }>();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const prevMessageLengthRef = useRef(messages.length);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [disableAutoScroll, setDisableAutoScroll] = useState(false);
 
   // Memoize sorted messages
   const sortedMessages = useMemo(() => 
@@ -258,13 +272,13 @@ export function MessageList({ onThreadClick }: { onThreadClick: (id: string) => 
 
   const scrollToBottom = useCallback((force = false) => {
     const container = scrollContainerRef.current;
-    if (container && (force || shouldAutoScroll)) {
+    if (container && !disableAutoScroll && (force || shouldAutoScroll)) {
       container.scrollTo({
         top: container.scrollHeight,
         behavior: 'smooth'
       });
     }
-  }, [shouldAutoScroll]);
+  }, [shouldAutoScroll, disableAutoScroll]);
 
   useEffect(() => {
     const forceScroll = messages.length > prevMessageLengthRef.current;
@@ -276,6 +290,26 @@ export function MessageList({ onThreadClick }: { onThreadClick: (id: string) => 
   useEffect(() => {
     scrollToBottom(true);
   }, [scrollToBottom]);
+
+  useEffect(() => {
+    // Check for highlighted message in sessionStorage
+    const stored = sessionStorage.getItem('highlightMessage');
+    if (stored) {
+      const { id, fromSearch } = JSON.parse(stored);
+      setHighlightedId(id);
+      setDisableAutoScroll(true); // Disable auto-scroll when highlighting
+      
+      // Clear highlight after delay but keep auto-scroll disabled if from search
+      setTimeout(() => {
+        setHighlightedId(null);
+        // Only re-enable auto-scroll if not from search
+        if (!fromSearch) {
+          setDisableAutoScroll(false);
+        }
+        sessionStorage.removeItem('highlightMessage');
+      }, 3000);
+    }
+  }, [messages]);
 
   return (
     <div 
@@ -290,6 +324,7 @@ export function MessageList({ onThreadClick }: { onThreadClick: (id: string) => 
               key={message.id} 
               message={message} 
               onThreadClick={onThreadClick}
+              isHighlighted={message.id === highlightedId}
             />
           ))}
           <div className="h-6">
