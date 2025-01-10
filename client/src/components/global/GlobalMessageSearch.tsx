@@ -13,6 +13,7 @@ interface SearchResult {
   messageIndex: number;
   channelName: string | null;
   dmRecipientName: string | null;
+  parentId?: string | null;
 }
 
 export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
@@ -52,13 +53,21 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
   };
 
   const navigateToMessage = (result: SearchResult) => {
+    // Debug logs
+    console.log('Search Result:', result);
+    console.log('Parent ID:', result.parentId);
+    console.log('Message ID:', result.id);
+    
+    // If it's a reply, use the parentId for highlighting
+    const highlightId = result.parentId || result.id;
+    
     const path = result.channelId 
       ? `/chat/channel/${result.channelId}`
       : `/chat/dm/${result.dmId}`;
     
-    // Store the message to highlight in sessionStorage with additional flag
+    // Store the message to highlight in sessionStorage
     sessionStorage.setItem('highlightMessage', JSON.stringify({
-      id: result.id,
+      id: highlightId,
       index: result.messageIndex,
       fromSearch: true
     }));

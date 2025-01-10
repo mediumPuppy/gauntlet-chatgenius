@@ -32,6 +32,7 @@ export async function searchMessages(req: AuthRequest, res: Response) {
             u.username AS "senderName",
             c.name AS "channelName",
             NULL AS "dmRecipientName",
+            m.parent_id AS "parentId",
             ROW_NUMBER() OVER (PARTITION BY COALESCE(m.channel_id, m.dm_id) ORDER BY m.created_at) as "messageIndex"
           FROM messages m
           JOIN users u ON m.user_id = u.id
@@ -54,6 +55,7 @@ export async function searchMessages(req: AuthRequest, res: Response) {
               WHEN dm.user1_id = $2 THEN u2.username
               ELSE u1.username
             END AS "dmRecipientName",
+            m.parent_id AS "parentId",
             ROW_NUMBER() OVER (PARTITION BY m.dm_id ORDER BY m.created_at) as "messageIndex"
           FROM messages m
           JOIN users u ON m.user_id = u.id
