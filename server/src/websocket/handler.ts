@@ -11,13 +11,13 @@ const clients = new Map<string, Set<WebSocketClient>>();
 const userSockets = new Map<string, Set<WebSocketClient>>();
 
 export class WebSocketHandler {
-  private wss: WebSocketServer;
-  private clients: Set<WebSocketClient>;
+  constructor(private wss: WebSocketServer) {
+    this.setupHeartbeat();
 
-  constructor(wss: WebSocketServer) {
-    this.wss = wss;
-    this.clients = new Set();
-    console.log('WebSocketHandler initialized');
+    // Extra logging on server-level errors
+    wss.on('error', (error) => {
+      console.error('WebSocketServer-level error:', error);
+    });
   }
 
   private setupHeartbeat() {
@@ -136,6 +136,10 @@ export class WebSocketHandler {
         await this.handleTypingMessage(ws, data as TypingMessage);
         break;
 
+      case 'reaction':
+        await this.handleReaction(ws, data);
+        break;
+
       default:
         console.error('Unknown message type:', data.type);
     }
@@ -237,10 +241,9 @@ export class WebSocketHandler {
 
   }
 
-  public async broadcastToChannel(channelId: string, data: any) {
-    console.log('Broadcasting to channel:', { channelId, data });
+  private async broadcastToChannel(channelId: string, message: WebSocketMessage) {
     const channelClients = clients.get(channelId) || new Set();
-    const messageStr = JSON.stringify(data);
+    const messageStr = JSON.stringify(message);
     
     channelClients.forEach(client => {
       if (client.readyState === client.OPEN) {
@@ -285,19 +288,41 @@ export class WebSocketHandler {
   }
 
   public async handleReaction(ws: WebSocketClient | null, data: any) {
-    console.log('handleReaction called with data:', data);
     try {
-      if (data.channelId) {
-        console.log('Broadcasting reaction to channel:', data.channelId);
-        await this.broadcastToChannel(data.channelId, data);
-      } else if (data.dmId) {
-        console.log('Broadcasting reaction to DM:', data.dmId);
-        await this.broadcastToDM(data.dmId, data);
-      } else {
-        console.error('No channelId or dmId provided for reaction:', data);
+      const { messageId, emoji, action } = data;
+      
+      // Get the channel/DM ID and parent_id for this message
+      const message = await pool.query(
+        'SELECT channel_id, dm_id, parent_id FROM messages WHERE id = $1',
+        [messageId]
+      );
+
+      if (message.rows.length === 0) {
+        ws?.send(JSON.stringify({ type: 'error', error: 'Message not found' }));
+        return;
+      }
+
+      const { channel_id, dm_id, parent_id } = message.rows[0];
+
+      // Broadcast to the appropriate channel or DM
+      const reactionMessage: ReactionMessage = {
+        type: 'reaction',
+        messageId,
+        userId: ws?.userId || '',
+        emoji,
+        action,
+        parentId: parent_id,
+        channelId: channel_id || ''
+      };
+
+      if (channel_id) {
+        await this.broadcastToChannel(channel_id, reactionMessage);
+      } else if (dm_id) {
+        await this.broadcastToDM(dm_id, reactionMessage);
       }
     } catch (error) {
-      console.error('Error in handleReaction:', error);
+      console.error('Error handling reaction:', error);
+      ws?.send(JSON.stringify({ type: 'error', error: 'Failed to process reaction' }));
     }
   }
 

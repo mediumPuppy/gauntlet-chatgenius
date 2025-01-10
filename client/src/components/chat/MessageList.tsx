@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Message as MessageType } from '../../types/message';
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
-import { toggleReaction } from '../../services/reactions';
+import { addReaction } from '../../services/reactions';
 // import { useNavigate } from 'react-router-dom';
   
 // Memoized Message component
@@ -29,14 +29,10 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
 
   const handleEmojiSelect = async (emoji: any) => {
     try {
-      console.log('1. handleEmojiSelect called with:', emoji);
-      console.log('2. About to call toggleReaction with:', {
-        token: token?.substring(0, 10) + '...',
-        messageId: message.id,
-        emoji: emoji.native
-      });
-      await toggleReaction(token!, message.id, emoji.native);
-      console.log('3. toggleReaction completed successfully');
+      console.log('Selected emoji full object:', emoji);
+      console.log('Selected emoji native:', emoji.native);
+      await addReaction(token!, message.id, emoji.native);
+      setShowEmojiPicker(false);
     } catch (error) {
       console.error('Failed to add reaction:', error);
     }
@@ -44,10 +40,8 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
 
   const handleReactionClick = async (emoji: string) => {
     try {
-      console.log('Toggling reaction:', emoji);
-      await toggleReaction(token!, message.id, emoji);
-      // No need to manually set local state if 
-      // you prefer to rely on the WebSocket "reaction" event
+      console.log('Clicking reaction:', emoji);
+      await addReaction(token!, message.id, emoji);
     } catch (error) {
       console.error('Failed to toggle reaction:', error);
     }
@@ -131,11 +125,29 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
       className={`group relative flex flex-col p-4 transition-colors duration-300
         ${isHighlighted ? 'bg-yellow-50' : 'hover:bg-gray-50'}`}
     >
-      <div className="flex items-baseline space-x-2">
-        <span className="font-medium text-gray-900">{message.senderName}</span>
-        <span className="text-sm text-gray-500">
-          {new Date(message.timestamp).toLocaleTimeString()}
-        </span>
+      <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline space-x-2">
+          <span className="font-medium text-gray-900">{message.senderName}</span>
+          <span className="text-sm text-gray-500">
+            {new Date(message.timestamp).toLocaleTimeString()}
+          </span>
+        </div>
+        
+        {message.hasReplies ? (
+          <button
+            onClick={() => onThreadClick(message.id)}
+            className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline"
+          >
+            Thread ({message.replyCount})
+          </button>
+        ) : (
+          <button
+            onClick={() => onThreadClick(message.id)}
+            className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline"
+          >
+            Reply
+          </button>
+        )}
       </div>
       {renderContent(message.content)}
       
@@ -178,23 +190,6 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
             onClickOutside={handleClickOutside}
           />
         </div>
-      )}
-
-      {/* Thread button - visible on hover */}
-      {message.hasReplies ? (
-        <button
-          onClick={() => onThreadClick(message.id)}
-          className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline ml-2"
-        >
-          Thread ({message.replyCount})
-        </button>
-      ) : (
-        <button
-          onClick={() => onThreadClick(message.id)}
-          className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline ml-2"
-        >
-          Reply
-        </button>
       )}
     </div>
   );

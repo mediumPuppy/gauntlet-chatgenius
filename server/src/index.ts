@@ -90,13 +90,7 @@ const wss = new WebSocketServer({
   }
 });
 
-// Create the WebSocketHandler instance
 const wsHandler = new WebSocketHandler(wss);
-
-// Assign to global
-global.wss = wsHandler;
-
-console.log('WebSocket handler assigned to global:', !!global.wss);
 
 wss.on('connection', (ws: WebSocketClient) => {
   wsHandler.handleConnection(ws);

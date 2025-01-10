@@ -19,10 +19,10 @@ const MessageContext = createContext<MessageContextType | undefined>(undefined);
 interface MessageProviderProps {
   children: React.ReactNode;
   channelId: string;
-  isDM?: boolean;
-  parentId?: string;
-  hasReplies?: boolean;
-  replyCount?: number;
+  isDM?: boolean;  
+  parentId?: string;      // If this exists, the message is IN a thread
+  hasReplies?: boolean;   // If true, this message HAS a thread
+  replyCount?: number;    
 }
 
 interface RawMessage {
@@ -49,117 +49,23 @@ interface RawMessage {
   reactions?: Record<string, string[]>;
 }
 
-export function MessageProvider({ children, channelId, isDM = false, parentId }: MessageProviderProps) {
+export function MessageProvider({ children, channelId, isDM = false }: MessageProviderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
-  const { token, user } = useAuth();
+  const { token } = useAuth();
+  const { user } = useAuth();
   const processedMessageIds = useRef(new Set<string>());
-  const { isConnected, showReconnecting, error, sendMessage: wsSendMessage, 
-    sendTyping: wsSendTyping, eventEmitter } = useWebSocket(channelId, isDM, parentId);
-
-  const handleMessage = useCallback((event: Event) => {
-    const customEvent = event as CustomEvent;
-    const data = customEvent.detail;
-    console.log('MessageContext received event:', data);
-
-    switch (data.type) {
-      case 'message':
-        if (processedMessageIds.current.has(data.id)) return;
-        processedMessageIds.current.add(data.id);
-
-        setMessages(prev => {
-          // Always add new messages that belong to this thread
-          if (parentId && (data.parentId === parentId || data.id === parentId)) {
-            return [...prev, data];
-          }
-          
-          // For main view, handle thread updates
-          if (!parentId) {
-            if (data.parentId) {
-              return prev.map(msg => {
-                if (msg.id === data.parentId) {
-                  return {
-                    ...msg,
-                    hasReplies: true,
-                    replyCount: (msg.replyCount || 0) + 1
-                  };
-                }
-                return msg;
-              });
-            }
-            return [...prev, data];
-          }
-          
-          return prev;
-        });
-        break;
-
-      case 'reaction':
-        const { messageId, userId, emoji, action, parentId: incomingParentId } = data;
-        console.log('Processing reaction:', { messageId, userId, emoji, action, incomingParentId });
-        setMessages(prev => {
-          console.log('Current messages:', prev.length);
-          return prev.map(msg => {
-            // Case 1: Direct match with the message
-            if (msg.id === messageId) {
-              const currentReactions = { ...(msg.reactions || {}) };
-              if (action === 'added') {
-                if (!currentReactions[emoji]) {
-                  currentReactions[emoji] = [];
-                }
-                if (!currentReactions[emoji].includes(userId)) {
-                  currentReactions[emoji] = [...currentReactions[emoji], userId];
-                }
-              } else {
-                currentReactions[emoji] = (currentReactions[emoji] || [])
-                  .filter(id => id !== userId);
-                if (currentReactions[emoji]?.length === 0) {
-                  delete currentReactions[emoji];
-                }
-              }
-              return { ...msg, reactions: currentReactions };
-            }
-            
-            // Case 2: If we're in thread view and this is the parent message
-            if (parentId && msg.id === parentId && messageId === parentId) {
-              const currentReactions = { ...(msg.reactions || {}) };
-              if (action === 'added') {
-                if (!currentReactions[emoji]) {
-                  currentReactions[emoji] = [];
-                }
-                if (!currentReactions[emoji].includes(userId)) {
-                  currentReactions[emoji] = [...currentReactions[emoji], userId];
-                }
-              } else {
-                currentReactions[emoji] = (currentReactions[emoji] || [])
-                  .filter(id => id !== userId);
-                if (currentReactions[emoji]?.length === 0) {
-                  delete currentReactions[emoji];
-                }
-              }
-              return { ...msg, reactions: currentReactions };
-            }
-            
-            return msg;
-          });
-        });
-        break;
-    }
-  }, [parentId]);
-
-  // Handle WebSocket events
-  useEffect(() => {
-    eventEmitter.addEventListener('ws-message', handleMessage as EventListener);
-    return () => {
-      eventEmitter.removeEventListener('ws-message', handleMessage as EventListener);
-    };
-  }, [eventEmitter, handleMessage]);
+  const { isConnected, showReconnecting, error, sendMessage: wsSendMessage, sendTyping, ws, eventEmitter } = useWebSocket(channelId, isDM);
+  const lastMessageTimestampRef = useRef<{ [userId: string]: number }>({});
 
   // Wrap sendMessage to also update local state
   const sendMessage = useCallback((content: string, parentId?: string) => {
     if (!user) return;
 
+    // Generate a temporary ID for the message
     const tempId = `${user.id}-${Date.now()}-${content}`;
+    
+    // Create the message object with optional parentId
     const newMessage: Message = {
       id: tempId,
       content,
@@ -167,11 +73,16 @@ export function MessageProvider({ children, channelId, isDM = false, parentId }:
       channelId,
       senderName: user.username,
       timestamp: Date.now(),
-      parentId
+      parentId    // Add parentId if provided
     };
 
+    // Add to processed set to prevent duplication if we somehow receive it back
     processedMessageIds.current.add(tempId);
+    
+    // Update local state immediately
     setMessages(prev => [...prev, newMessage]);
+    
+    // Send via WebSocket with parentId
     wsSendMessage(content, parentId);
   }, [user, channelId, wsSendMessage]);
 
@@ -180,8 +91,6 @@ export function MessageProvider({ children, channelId, isDM = false, parentId }:
     let isMounted = true;
 
     const fetchMessageHistory = async () => {
-      if (!token) return;
-
       try {
         const endpoint = isDM ? `/dm/${channelId}/messages` : `/messages?channelId=${channelId}`;
         const response = await fetch(`${API_URL}${endpoint}`, {
@@ -190,11 +99,15 @@ export function MessageProvider({ children, channelId, isDM = false, parentId }:
           }
         });
         
-        if (!response.ok) throw new Error('Failed to fetch messages');
+        if (!response.ok) {
+          console.error('Failed to fetch messages:', response.status, response.statusText);
+          throw new Error('Failed to fetch messages');
+        }
         
         const data = await response.json();
         
         if (isMounted) {
+          // Transform the messages to ensure consistent property names
           const transformedMessages = data.map((msg: RawMessage) => ({
             id: msg.id,
             content: msg.content,
@@ -204,17 +117,14 @@ export function MessageProvider({ children, channelId, isDM = false, parentId }:
             timestamp: typeof msg.timestamp === 'string' 
               ? new Date(msg.timestamp).getTime() 
               : (msg.timestamp || new Date(msg.created_at || Date.now()).getTime()),
-            parentId: msg.parent_id || msg.parentId,
+            parentId: msg.parent_id || msg.parentId,        // Add threading fields
             hasReplies: msg.has_replies || msg.hasReplies || false,
             replyCount: msg.reply_count || msg.replyCount || 0,
-            reactions: typeof msg.reactions === 'string' 
-              ? JSON.parse(msg.reactions) 
-              : (msg.reactions || {})
+            reactions: msg.reactions || {}
           }));
 
-          transformedMessages.forEach((msg: Message) => {
-            processedMessageIds.current.add(msg.id);
-          });
+          // Add all message IDs to processed set
+          transformedMessages.forEach((msg: Message) => processedMessageIds.current.add(msg.id));
           
           setMessages(transformedMessages);
           setTypingUsers([]);
@@ -224,17 +134,150 @@ export function MessageProvider({ children, channelId, isDM = false, parentId }:
       }
     };
 
-    fetchMessageHistory();
+    if (channelId && token) {
+      fetchMessageHistory();
+    }
     
     return () => {
       isMounted = false;
-      processedMessageIds.current.clear();
     };
   }, [channelId, token, isDM]);
 
-  const sendTyping = useCallback(() => {
-    wsSendTyping();
-  }, [wsSendTyping]);
+  // Handle incoming WebSocket messages
+  useEffect(() => {
+    if (!ws) return;
+
+    const handleMessage = (event: CustomEvent) => {
+      const data = event.detail;
+      console.log('Received WebSocket message:', data);
+
+      // Only process messages for current channel/DM
+      if (data.channelId !== channelId) return;
+
+      switch (data.type) {
+        case 'message': {
+          // Generate a stable message ID based on content and timestamp
+          const messageId = data.id || `${data.senderId}-${data.timestamp}-${data.content}`;
+          
+          // Skip if we've already processed this message
+          if (processedMessageIds.current.has(messageId)) {
+            console.log('Skipping duplicate message:', messageId);
+            return;
+          }
+
+          // Rate limit messages from the same user
+          const now = Date.now();
+          const lastMessageTime = lastMessageTimestampRef.current[data.senderId] || 0;
+          if (now - lastMessageTime < 100) {
+            console.log('Rate limiting message from user:', data.senderId);
+            return;
+          }
+          lastMessageTimestampRef.current[data.senderId] = now;
+          
+          console.log('Processing new message:', data);
+          const newMessage: Message = {
+            id: messageId,
+            content: data.content,
+            userId: data.userId || data.user_id || data.userid || data.senderId,
+            channelId: data.channelId || data.channel_id || channelId,
+            senderName: data.senderName || data.sender_name || data.sendername || data.username,
+            timestamp: typeof data.timestamp === 'string' 
+              ? new Date(data.timestamp).getTime() 
+              : (data.timestamp || Date.now()),
+            parentId: data.parentId,           // Add parentId
+            hasReplies: data.hasReplies,       // Add hasReplies
+            replyCount: data.replyCount        // Add replyCount
+          };
+          
+          // Add to processed set
+          processedMessageIds.current.add(messageId);
+         
+          // Limit the size of the processed set
+          if (processedMessageIds.current.size > 1000) {
+            const oldestEntries = Array.from(processedMessageIds.current).slice(0, 500);
+            processedMessageIds.current = new Set(oldestEntries);
+          }
+
+          setMessages(prev => {
+            // First update the parent message if needed
+            let updatedMessages = data.parentId 
+              ? prev.map(msg => 
+                  msg.id === data.parentId 
+                    ? { ...msg, hasReplies: true, replyCount: (msg.replyCount || 0) + 1 }
+                    : msg
+                )
+              : prev;
+            
+            // Then add the new message
+            return [...updatedMessages, newMessage];
+          });
+
+          break;
+        }
+
+        case 'typing': {
+          const typingUserId = data.userId;
+          if (!typingUserId) return;
+
+          setTypingUsers(prev => {
+            // Skip if user is already in typing list
+            if (prev.some(u => u.userId === typingUserId)) {
+              return prev;
+            }
+            return [...prev, {
+              userId: typingUserId,
+              username: data.username
+            }];
+          });
+
+          // Clear typing indicator after 3 seconds
+          setTimeout(() => {
+            setTypingUsers(prev => prev.filter(u => u.userId !== typingUserId));
+          }, 3000);
+          break;
+        }
+
+        case 'reaction': {
+          const { messageId, userId, emoji, action } = data;
+          console.log('Handling reaction event:', { messageId, userId, emoji, action });
+          
+          setMessages(prev => {
+            return prev.map(msg => {
+              // Check if this is the message that got the reaction
+              // OR if this is a parent message that contains the reacted message in its thread
+              if (msg.id === messageId || (msg.hasReplies && data.parentId === msg.id)) {
+                // Create a new reactions object if it doesn't exist
+                const currentReactions = { ...(msg.reactions || {}) };
+                console.log('Current reactions before update:', currentReactions);
+                
+                if (action === 'added') {
+                  // Create new array if emoji doesn't exist
+                  const currentUsers = currentReactions[emoji] || [];
+                  currentReactions[emoji] = [...currentUsers, userId];
+                } else {
+                  // Remove user from the emoji's users array
+                  if (currentReactions[emoji]) {
+                    currentReactions[emoji] = currentReactions[emoji].filter(id => id !== userId);
+                    if (currentReactions[emoji].length === 0) {
+                      delete currentReactions[emoji];
+                    }
+                  }
+                }
+                
+                console.log('Updated reactions:', currentReactions);
+                return { ...msg, reactions: currentReactions };
+              }
+              return msg;
+            });
+          });
+          break;
+        }
+      }
+    };
+
+    eventEmitter.addEventListener(WS_MESSAGE_EVENT, handleMessage as EventListener);
+    return () => eventEmitter.removeEventListener(WS_MESSAGE_EVENT, handleMessage as EventListener);
+  }, [channelId, eventEmitter, ws]);
 
   return (
     <MessageContext.Provider value={{
@@ -251,6 +294,7 @@ export function MessageProvider({ children, channelId, isDM = false, parentId }:
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useMessages() {
   const context = useContext(MessageContext);
   if (context === undefined) {

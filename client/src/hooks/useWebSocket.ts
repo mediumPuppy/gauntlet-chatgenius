@@ -4,31 +4,37 @@ import { WebSocketMessage } from '../types/message';
 
 type ConnectionState = 'PREPARING' | 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED';
 
-// Create a singleton instance to track global connection state
-const globalWsState = {
-  instance: null as WebSocket | null,
-  connecting: false,
-  connectedChannels: new Set<string>(),
-};
+const wsEventEmitter = new EventTarget();
+export const WS_MESSAGE_EVENT = 'ws-message';
 
 // For Vite, remember to configure your .env with VITE_WS_URL
 const DEFAULT_WS_URL = 'ws://localhost:3001/ws';
 const WS_URL = import.meta.env.VITE_WS_URL || DEFAULT_WS_URL;
 
-export const WS_MESSAGE_EVENT = 'ws-message';
-const wsEventEmitter = new EventTarget();
-
-export function useWebSocket(channelId: string, isDM = false, parentId?: string) {
+export function useWebSocket(channelId: string, isDM = false) {
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
-  const reconnectTimer = useRef<number>();
-  const maxReconnectAttempts = 5;
-  const maxReconnectDelay = 10000; // 10 seconds
+  const maxReconnectDelay = 30000;
+  const maxReconnectAttempts = 10;
   const { token } = useAuth();
   const [connectionState, setConnectionState] = useState<ConnectionState>('PREPARING');
   const [showReconnecting, setShowReconnecting] = useState(false);
+  const reconnectingTimeout = useRef<number>();
   const [error, setError] = useState<string | null>(null);
-  const channelKey = `${isDM ? 'dm' : 'channel'}-${channelId}`;
+  const isConnecting = useRef(false);
+  const reconnectTimer = useRef<number>();
+  // const lastConnectionAttempt = useRef<number>(0);
+
+  const clearTimeouts = useCallback(() => {
+    if (reconnectingTimeout.current) {
+      clearTimeout(reconnectingTimeout.current);
+      reconnectingTimeout.current = undefined;
+    }
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = undefined;
+    }
+  }, []);
 
   const connect = useCallback(() => {
     if (!token) {
@@ -37,68 +43,56 @@ export function useWebSocket(channelId: string, isDM = false, parentId?: string)
       return;
     }
 
-    // If already connected to this channel, use existing connection
-    if (globalWsState.connectedChannels.has(channelKey)) {
-      ws.current = globalWsState.instance;
-      setConnectionState('CONNECTED');
-      return;
+    if (isConnecting.current) {
+      console.error('Connection is already in progress, forcing a close before reconnecting.');
+      if (ws.current) {
+        ws.current.close(1000, 'Forcing new connection');
+        ws.current = null;
+      }
+      isConnecting.current = false;
     }
 
-    // If already connecting, wait
-    if (globalWsState.connecting) {
-      console.log('Connection already in progress, waiting...');
-      return;
+    // If a WS already exists, close it before creating a new one
+    if (ws.current) {
+      // This is a deliberate close, so reset reconnect attempts
+      reconnectAttempts.current = 0;
+      setShowReconnecting(false);
+
+      ws.current.close(1000, 'Reconnecting');
+      ws.current = null;
     }
 
-    // If there's an existing connection, use it
-    if (globalWsState.instance?.readyState === WebSocket.OPEN) {
-      ws.current = globalWsState.instance;
-      globalWsState.connectedChannels.add(channelKey);
-      
-      // Send channel join message
-      console.log('Joining channel:', channelId);
-      ws.current.send(JSON.stringify({
-        type: 'join',
-        channelId,
-        isDM,
-        token
-      }));
-      
-      setConnectionState('CONNECTED');
-      return;
-    }
-
-    globalWsState.connecting = true;
+    isConnecting.current = true;
     setConnectionState('CONNECTING');
 
     try {
-      const newWs = new WebSocket(WS_URL);
-      globalWsState.instance = newWs;
-      ws.current = newWs;
+      // No longer referencing "process.env"
+      ws.current = new WebSocket(WS_URL);
 
-      newWs.onopen = () => {
-        globalWsState.connecting = false;
+      ws.current.onopen = () => {
         setConnectionState('CONNECTED');
-        globalWsState.connectedChannels.add(channelKey);
+        isConnecting.current = false;
+
+        // Reset reconnect attempts and hide bubble
+        reconnectAttempts.current = 0;
+        setShowReconnecting(false);
 
         // Send authentication
-        newWs.send(JSON.stringify({
+        ws.current?.send(JSON.stringify({
           type: 'auth',
           token,
           channelId,
           isDM,
-          isThread: !!parentId,
-          parentId,
         }));
       };
 
-      newWs.onerror = (event) => {
+      ws.current.onerror = (event) => {
         console.error('WebSocket onerror fired:', event);
         setError('WebSocket encountered an error.');
       };
 
-      newWs.onclose = (event) => {
-        globalWsState.connecting = false;
+      ws.current.onclose = (event) => {
+        isConnecting.current = false;
         setConnectionState('DISCONNECTED');
 
         // Attempt to reconnect if not a normal close
@@ -116,34 +110,29 @@ export function useWebSocket(channelId: string, isDM = false, parentId?: string)
         }
       };
 
-      newWs.onmessage = (messageEvent) => {
+      ws.current.onmessage = (messageEvent) => {
         try {
           const data = JSON.parse(messageEvent.data);
-          console.log('WebSocket received:', data);
           wsEventEmitter.dispatchEvent(new CustomEvent(WS_MESSAGE_EVENT, { detail: data }));
         } catch (err) {
           console.error('Error parsing WebSocket message:', err);
         }
       };
     } catch (err) {
-      globalWsState.connecting = false;
       console.error('Failed to create WebSocket connection:', err);
       setError('Failed to create WebSocket connection.');
     }
-  }, [token, channelId, isDM, channelKey]);
+  }, [token, channelId, isDM, clearTimeouts]);
 
   useEffect(() => {
     connect();
-    
     return () => {
-      globalWsState.connectedChannels.delete(channelKey);
-      // Only close the connection if no more channels are connected
-      if (globalWsState.connectedChannels.size === 0) {
-        globalWsState.instance?.close();
-        globalWsState.instance = null;
+      clearTimeouts();
+      if (ws.current) {
+        ws.current.close();
       }
     };
-  }, [connect, channelKey]);
+  }, [connect, clearTimeouts]);
 
   const sendMessage = useCallback(
     (content: string, parentId?: string) => {
