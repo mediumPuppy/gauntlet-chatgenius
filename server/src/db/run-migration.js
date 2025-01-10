@@ -40,11 +40,11 @@ var pg_1 = require("pg");
 var fs = require("fs");
 var path = require("path");
 var pool = new pg_1.Pool({
-    user: 'chatgenius',
-    host: 'localhost',
-    database: 'chatgenius',
-    password: 'chatgenius',
-    port: 5432,
+    user: process.env.PGUSER || 'chatgenius',
+    host: process.env.PGHOST || 'localhost',
+    database: process.env.PGDATABASE || 'chatgenius',
+    password: process.env.PGPASSWORD || 'chatgenius',
+    port: parseInt(process.env.PGPORT || '5432'),
 });
 function runMigration() {
     return __awaiter(this, void 0, void 0, function () {

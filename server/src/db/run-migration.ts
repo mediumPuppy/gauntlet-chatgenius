@@ -3,11 +3,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const pool = new Pool({
-  user: 'chatgenius',
-  host: 'localhost',
-  database: 'chatgenius',
-  password: 'chatgenius',
-  port: 5432,
+  user: process.env.PGUSER ||  'chatgenius',
+  host: process.env.PGHOST || 'localhost',
+  database: process.env.PGDATABASE || 'chatgenius',
+  password: process.env.PGPASSWORD || 'chatgenius',
+  port: parseInt(process.env.PGPORT || '5432'),
 });
 
 async function runMigration() {

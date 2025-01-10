@@ -7,8 +7,6 @@ export const config: PoolConfig = {
   port: parseInt(process.env.PGPORT || '5432'),
   database: process.env.PGDATABASE || 'chatgenius',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  connectionTimeoutMillis: 5000,
-  statement_timeout: 10000,
 };
 
 const pool = new Pool(config);
