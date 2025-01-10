@@ -48,6 +48,14 @@ interface RawMessage {
   replyCount?: number;
 }
 
+interface ReactionEvent {
+  type: 'reaction';
+  messageId: string;
+  userId: string;
+  emoji: string;
+  action: 'added' | 'removed';
+}
+
 export function MessageProvider({ children, channelId, isDM = false }: MessageProviderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
@@ -232,6 +240,26 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
           setTimeout(() => {
             setTypingUsers(prev => prev.filter(u => u.userId !== typingUserId));
           }, 3000);
+          break;
+        }
+
+        case 'reaction': {
+          const { messageId, userId, emoji, action } = data;
+          setMessages(prev => prev.map(msg => {
+            if (msg.id !== messageId) return msg;
+            
+            const reactions = { ...msg.reactions } || {};
+            if (action === 'added') {
+              reactions[emoji] = [...(reactions[emoji] || []), userId];
+            } else {
+              reactions[emoji] = reactions[emoji]?.filter(id => id !== userId) || [];
+              if (reactions[emoji]?.length === 0) {
+                delete reactions[emoji];
+              }
+            }
+            
+            return { ...msg, reactions };
+          }));
           break;
         }
       }

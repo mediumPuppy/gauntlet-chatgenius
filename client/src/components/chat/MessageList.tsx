@@ -2,11 +2,38 @@ import { useEffect, useRef, useState, useCallback, memo, useMemo } from 'react';
 import { useMessages } from '../../contexts/MessageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Message as MessageType } from '../../types/message';
+import data from '@emoji-mart/data'
+import Picker from '@emoji-mart/react'
+import { addReaction, removeReaction } from '../../services/reactions';
 // import { useNavigate } from 'react-router-dom';
   
 // Memoized Message component
 const Message = memo(({ message, onThreadClick }: { message: MessageType, onThreadClick: (threadId: string) => void }) => {
   // const navigate = useNavigate();
+  const { token, user } = useAuth();
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const reactions = message.reactions || {};
+  const [showAbove, setShowAbove] = useState(false);
+  const messageRef = useRef<HTMLDivElement>(null);
+
+  const handleEmojiSelect = async (emoji: any) => {
+    try {
+      await addReaction(token!, message.id, emoji.native);
+      setShowEmojiPicker(false);
+      // WebSocket will handle the update
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+    }
+  };
+
+  const handleReactionClick = async (emoji: string) => {
+    try {
+      await addReaction(token!, message.id, emoji);
+    } catch (error) {
+      console.error('Failed to toggle reaction:', error);
+    }
+  };
+
   const renderContent = (content: string) => {
     // Check for image markdown syntax: ![alt](url)
     const imageMatch = content.match(/!\[(.*?)\]\((.*?)\)/);
@@ -47,8 +74,27 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
     return <p className="text-gray-800">{content}</p>;
   };
 
+  // Add function to determine picker position
+  const updatePickerPosition = useCallback(() => {
+    if (!messageRef.current) return;
+    
+    const messageRect = messageRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const messageMiddle = messageRect.top + (messageRect.height / 2);
+    
+    // If message is in the bottom half of viewport, show picker above
+    setShowAbove(messageMiddle > viewportHeight / 2);
+  }, []);
+
+  // Update position when emoji picker is opened
+  useEffect(() => {
+    if (showEmojiPicker) {
+      updatePickerPosition();
+    }
+  }, [showEmojiPicker, updatePickerPosition]);
+
   return (
-    <div className="flex items-start space-x-3 p-2 hover:bg-gray-50 group">
+    <div ref={messageRef} className="flex items-start space-x-3 p-2 hover:bg-gray-50 group relative">
       <div className="flex-shrink-0">
         <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
           {message.senderName[0].toUpperCase()}
@@ -62,6 +108,46 @@ const Message = memo(({ message, onThreadClick }: { message: MessageType, onThre
           </span>
         </div>
         {renderContent(message.content)}
+        
+        {/* Add reactions bar */}
+        <div className="mt-2 flex flex-wrap gap-1">
+          {Object.entries(reactions).map(([emoji, users]) => (
+            <button
+              key={emoji}
+              onClick={() => handleReactionClick(emoji)}
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs
+                ${users.includes(user?.id || '') ? 'bg-primary-100' : 'bg-gray-100'}
+                hover:bg-primary-200 transition-colors`}
+            >
+              <span>{emoji}</span>
+              <span className="ml-1">{users.length}</span>
+            </button>
+          ))}
+          
+          <button
+            onClick={() => setShowEmojiPicker(true)}
+            className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 
+              hover:bg-gray-200 transition-colors"
+          >
+            <span>+</span>
+          </button>
+        </div>
+
+        {showEmojiPicker && (
+          <div className={`absolute z-50 ${showAbove ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+            <div 
+              className="fixed inset-0" 
+              onClick={() => setShowEmojiPicker(false)}
+            />
+            <Picker
+              data={data}
+              onEmojiSelect={handleEmojiSelect}
+              theme="light"
+              previewPosition="none"
+              skinTonePosition="none"
+            />
+          </div>
+        )}
       </div>
 
       {/* Thread button - visible on hover */}
@@ -208,4 +294,6 @@ export function MessageList({ onThreadClick }: { onThreadClick: (id: string) => 
       )}
     </div>
   );
-} 
+}
+
+export { Message }; 

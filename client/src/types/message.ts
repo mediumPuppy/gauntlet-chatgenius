@@ -9,6 +9,7 @@ export interface Message {
   parentId?: string;
   hasReplies?: boolean;
   replyCount?: number;
+  reactions?: Record<string, string[]>; // emoji -> array of userIds
 }
 
 export interface TypingUser {

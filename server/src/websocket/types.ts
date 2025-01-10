@@ -12,7 +12,8 @@ export type WebSocketMessageType =
   | 'read'
   | 'error'
   | 'auth'
-  | 'presence';
+  | 'presence'
+  | 'reaction';
 
 export interface WebSocketMessage {
   type: WebSocketMessageType;
@@ -60,4 +61,12 @@ export interface PresenceMessage extends WebSocketMessage {
   username: string;
   isOnline: boolean;
   lastSeen: string;
+}
+
+export interface ReactionMessage extends WebSocketMessage {
+  type: 'reaction';
+  messageId: string;
+  userId: string;
+  emoji: string;
+  action: 'added' | 'removed';
 }

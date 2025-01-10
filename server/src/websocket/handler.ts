@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
-import { WebSocketClient, WebSocketMessage, ChatMessage, TypingMessage, PresenceMessage } from './types';
+import { WebSocketClient, WebSocketMessage, ChatMessage, TypingMessage, PresenceMessage, ReactionMessage } from './types';
 import { messageQueries } from '../models/message';
 import { channelQueries } from '../models/channel';
 import { userQueries } from '../models/user';
@@ -134,6 +134,10 @@ export class WebSocketHandler {
 
       case 'typing':
         await this.handleTypingMessage(ws, data as TypingMessage);
+        break;
+
+      case 'reaction':
+        await this.handleReaction(ws, data);
         break;
 
       default:
@@ -280,6 +284,47 @@ export class WebSocketHandler {
       });
     } catch (error) {
       console.error('Error broadcasting to DM:', error);
+    }
+  }
+
+  private async handleReaction(ws: WebSocketClient, data: any) {
+    try {
+      const { messageId, emoji, action } = data;
+      
+      // Get the channel/DM ID for this message
+      const message = await pool.query(
+        'SELECT channel_id, dm_id FROM messages WHERE id = $1',
+        [messageId]
+      );
+
+      if (message.rows.length === 0) {
+        ws.send(JSON.stringify({ type: 'error', error: 'Message not found' }));
+        return;
+      }
+
+      const { channel_id, dm_id } = message.rows[0];
+
+      // Broadcast to the appropriate channel or DM
+      if (channel_id) {
+        await this.broadcastToChannel(channel_id, {
+          type: 'reaction',
+          messageId,
+          userId: ws.userId,
+          emoji,
+          action
+        } as ReactionMessage);
+      } else if (dm_id) {
+        await this.broadcastToDM(dm_id, {
+          type: 'reaction',
+          messageId,
+          userId: ws.userId,
+          emoji,
+          action
+        } as ReactionMessage);
+      }
+    } catch (error) {
+      console.error('Error handling reaction:', error);
+      ws.send(JSON.stringify({ type: 'error', error: 'Failed to process reaction' }));
     }
   }
 

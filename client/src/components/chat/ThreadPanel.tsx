@@ -1,11 +1,12 @@
 // client/src/components/chat/ThreadPanel.tsx
 import { useEffect, useState } from 'react';
-import { Message } from '../../types/message';
+import { Message as MessageType } from '../../types/message';
 import { MessageInput } from './MessageInput';
 import { API_URL } from '../../services/config';
 import { MessageProvider } from '../../contexts/MessageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMessages } from '../../contexts/MessageContext';
+import { Message as MessageComponent } from './MessageList';
 
 interface ThreadPanelProps {
   messageId: string;
@@ -13,8 +14,8 @@ interface ThreadPanelProps {
 }
 
 export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
-  const [parent, setParent] = useState<Message | null>(null);
-  const [replies, setReplies] = useState<Message[]>([]);
+  const [parent, setParent] = useState<MessageType | null>(null);
+  const [replies, setReplies] = useState<MessageType[]>([]);
   const { token } = useAuth();
   const { messages } = useMessages();
 
@@ -63,18 +64,19 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
       
       <div className="flex-1 overflow-y-auto p-4">
         {parent && (
-          <div className="mb-4 p-3 bg-gray-50 rounded">
-            <div className="font-medium">{parent.senderName}</div>
-            <p>{parent.content}</p>
-          </div>
+          <MessageComponent 
+            message={parent}
+            onThreadClick={() => {}}
+          />
         )}
         
         <div className="space-y-4">
           {replies.map((reply) => (
-            <div key={reply.id} className="p-2">
-              <div className="font-medium">{reply.senderName}</div>
-              <p>{reply.content}</p>
-            </div>
+            <MessageComponent
+              key={reply.id}
+              message={reply}
+              onThreadClick={() => {}}
+            />
           ))}
         </div>
       </div>
