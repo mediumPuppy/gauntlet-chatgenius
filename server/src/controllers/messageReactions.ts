@@ -40,21 +40,22 @@ export async function addReaction(req: AuthRequest, res: Response) {
       action = 'added';
     }
 
-    // Get the channel/DM ID for this message
+    // Get the channel/DM ID and parentId for this message
     const message = await pool.query(
-      'SELECT channel_id, dm_id FROM messages WHERE id = $1',
+      'SELECT channel_id, dm_id, parent_id FROM messages WHERE id = $1',
       [messageId]
     );
 
     if (message.rows.length > 0) {
-      const { channel_id, dm_id } = message.rows[0];
+      const { channel_id, dm_id, parent_id } = message.rows[0];
       // Emit WebSocket event
       global.wss?.handleReaction(null, {
         type: 'reaction',
         messageId,
         userId,
         emoji,
-        action
+        action,
+        parentId: parent_id
       });
     }
 

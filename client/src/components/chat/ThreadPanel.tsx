@@ -45,13 +45,13 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
     }
   }, [messageId, token]);
 
-  // Update replies when new messages come in
+  // Update replies when new messages or reactions come in
   useEffect(() => {
     const newReplies = messages.filter(msg => msg.parentId === messageId);
-    if (newReplies.length > replies.length) {
-      setReplies(prev => [...prev, ...newReplies.slice(prev.length)]);
+    if (JSON.stringify(newReplies) !== JSON.stringify(replies)) {
+      setReplies(newReplies);
     }
-  }, [messages, messageId, replies.length]);
+  }, [messages, messageId]);
 
   return (
     <div className="w-96 border-l border-gray-200 h-full flex flex-col bg-white">

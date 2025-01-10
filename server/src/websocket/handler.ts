@@ -291,9 +291,9 @@ export class WebSocketHandler {
     try {
       const { messageId, emoji, action } = data;
       
-      // Get the channel/DM ID for this message
+      // Get the channel/DM ID and parent_id for this message
       const message = await pool.query(
-        'SELECT channel_id, dm_id FROM messages WHERE id = $1',
+        'SELECT channel_id, dm_id, parent_id FROM messages WHERE id = $1',
         [messageId]
       );
 
@@ -302,25 +302,23 @@ export class WebSocketHandler {
         return;
       }
 
-      const { channel_id, dm_id } = message.rows[0];
+      const { channel_id, dm_id, parent_id } = message.rows[0];
 
       // Broadcast to the appropriate channel or DM
+      const reactionMessage: ReactionMessage = {
+        type: 'reaction',
+        messageId,
+        userId: ws?.userId || '',
+        emoji,
+        action,
+        parentId: parent_id,
+        channelId: channel_id || ''
+      };
+
       if (channel_id) {
-        await this.broadcastToChannel(channel_id, {
-          type: 'reaction',
-          messageId,
-          userId: ws?.userId,
-          emoji,
-          action
-        } as ReactionMessage);
+        await this.broadcastToChannel(channel_id, reactionMessage);
       } else if (dm_id) {
-        await this.broadcastToDM(dm_id, {
-          type: 'reaction',
-          messageId,
-          userId: ws?.userId,
-          emoji,
-          action
-        } as ReactionMessage);
+        await this.broadcastToDM(dm_id, reactionMessage);
       }
     } catch (error) {
       console.error('Error handling reaction:', error);

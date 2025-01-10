@@ -49,14 +49,6 @@ interface RawMessage {
   reactions?: Record<string, string[]>;
 }
 
-interface ReactionEvent {
-  type: 'reaction';
-  messageId: string;
-  userId: string;
-  emoji: string;
-  action: 'added' | 'removed';
-}
-
 export function MessageProvider({ children, channelId, isDM = false }: MessageProviderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
@@ -251,28 +243,31 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
           
           setMessages(prev => {
             return prev.map(msg => {
-              if (msg.id !== messageId) return msg;
-              
-              // Create a new reactions object if it doesn't exist
-              const currentReactions = { ...(msg.reactions || {}) };
-              console.log('Current reactions before update:', currentReactions);
-              
-              if (action === 'added') {
-                // Create new array if emoji doesn't exist
-                const currentUsers = currentReactions[emoji] || [];
-                currentReactions[emoji] = [...currentUsers, userId];
-              } else {
-                // Remove user from the emoji's users array
-                if (currentReactions[emoji]) {
-                  currentReactions[emoji] = currentReactions[emoji].filter(id => id !== userId);
-                  if (currentReactions[emoji].length === 0) {
-                    delete currentReactions[emoji];
+              // Check if this is the message that got the reaction
+              // OR if this is a parent message that contains the reacted message in its thread
+              if (msg.id === messageId || (msg.hasReplies && data.parentId === msg.id)) {
+                // Create a new reactions object if it doesn't exist
+                const currentReactions = { ...(msg.reactions || {}) };
+                console.log('Current reactions before update:', currentReactions);
+                
+                if (action === 'added') {
+                  // Create new array if emoji doesn't exist
+                  const currentUsers = currentReactions[emoji] || [];
+                  currentReactions[emoji] = [...currentUsers, userId];
+                } else {
+                  // Remove user from the emoji's users array
+                  if (currentReactions[emoji]) {
+                    currentReactions[emoji] = currentReactions[emoji].filter(id => id !== userId);
+                    if (currentReactions[emoji].length === 0) {
+                      delete currentReactions[emoji];
+                    }
                   }
                 }
+                
+                console.log('Updated reactions:', currentReactions);
+                return { ...msg, reactions: currentReactions };
               }
-              
-              console.log('Updated reactions:', currentReactions);
-              return { ...msg, reactions: currentReactions };
+              return msg;
             });
           });
           break;
