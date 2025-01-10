@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { useWebSocket, WS_MESSAGE_EVENT } from '../hooks/useWebSocket';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from './AuthContext';
 import { API_URL } from '../services/config';
 import { Message, TypingUser } from '../types/message';
@@ -19,10 +19,10 @@ const MessageContext = createContext<MessageContextType | undefined>(undefined);
 interface MessageProviderProps {
   children: React.ReactNode;
   channelId: string;
-  isDM?: boolean;  
-  parentId?: string;      // If this exists, the message is IN a thread
-  hasReplies?: boolean;   // If true, this message HAS a thread
-  replyCount?: number;    
+  isDM?: boolean;
+  parentId?: string;
+  hasReplies?: boolean;
+  replyCount?: number;
 }
 
 interface RawMessage {
@@ -52,20 +52,22 @@ interface RawMessage {
 export function MessageProvider({ children, channelId, isDM = false }: MessageProviderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
-  const { token } = useAuth();
-  const { user } = useAuth();
+  const { token, user } = useAuth();
   const processedMessageIds = useRef(new Set<string>());
-  const { isConnected, showReconnecting, error, sendMessage: wsSendMessage, sendTyping, ws, eventEmitter } = useWebSocket(channelId, isDM);
-  const lastMessageTimestampRef = useRef<{ [userId: string]: number }>({});
+  const { 
+    isConnected, 
+    showReconnecting, 
+    error, 
+    sendMessage: wsSendMessage, 
+    sendTyping: wsSendTyping, 
+    eventEmitter 
+  } = useWebSocket(channelId, isDM);
 
   // Wrap sendMessage to also update local state
   const sendMessage = useCallback((content: string, parentId?: string) => {
     if (!user) return;
 
-    // Generate a temporary ID for the message
     const tempId = `${user.id}-${Date.now()}-${content}`;
-    
-    // Create the message object with optional parentId
     const newMessage: Message = {
       id: tempId,
       content,
@@ -73,16 +75,11 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
       channelId,
       senderName: user.username,
       timestamp: Date.now(),
-      parentId    // Add parentId if provided
+      parentId
     };
 
-    // Add to processed set to prevent duplication if we somehow receive it back
     processedMessageIds.current.add(tempId);
-    
-    // Update local state immediately
     setMessages(prev => [...prev, newMessage]);
-    
-    // Send via WebSocket with parentId
     wsSendMessage(content, parentId);
   }, [user, channelId, wsSendMessage]);
 
@@ -91,6 +88,8 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
     let isMounted = true;
 
     const fetchMessageHistory = async () => {
+      if (!token) return;
+
       try {
         const endpoint = isDM ? `/dm/${channelId}/messages` : `/messages?channelId=${channelId}`;
         const response = await fetch(`${API_URL}${endpoint}`, {
@@ -99,15 +98,11 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
           }
         });
         
-        if (!response.ok) {
-          console.error('Failed to fetch messages:', response.status, response.statusText);
-          throw new Error('Failed to fetch messages');
-        }
+        if (!response.ok) throw new Error('Failed to fetch messages');
         
         const data = await response.json();
         
         if (isMounted) {
-          // Transform the messages to ensure consistent property names
           const transformedMessages = data.map((msg: RawMessage) => ({
             id: msg.id,
             content: msg.content,
@@ -117,14 +112,15 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
             timestamp: typeof msg.timestamp === 'string' 
               ? new Date(msg.timestamp).getTime() 
               : (msg.timestamp || new Date(msg.created_at || Date.now()).getTime()),
-            parentId: msg.parent_id || msg.parentId,        // Add threading fields
+            parentId: msg.parent_id || msg.parentId,
             hasReplies: msg.has_replies || msg.hasReplies || false,
             replyCount: msg.reply_count || msg.replyCount || 0,
             reactions: msg.reactions || {}
           }));
 
-          // Add all message IDs to processed set
-          transformedMessages.forEach((msg: Message) => processedMessageIds.current.add(msg.id));
+          transformedMessages.forEach((msg: Message) => {
+            processedMessageIds.current.add(msg.id);
+          });
           
           setMessages(transformedMessages);
           setTypingUsers([]);
@@ -134,93 +130,46 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
       }
     };
 
-    if (channelId && token) {
-      fetchMessageHistory();
-    }
+    fetchMessageHistory();
     
     return () => {
       isMounted = false;
+      processedMessageIds.current.clear();
     };
   }, [channelId, token, isDM]);
 
-  // Handle incoming WebSocket messages
+  // Handle WebSocket events
   useEffect(() => {
-    if (!ws) return;
-
     const handleMessage = (event: CustomEvent) => {
       const data = event.detail;
-      console.log('Received WebSocket message:', data);
-
-      // Only process messages for current channel/DM
-      if (data.channelId !== channelId) return;
 
       switch (data.type) {
         case 'message': {
-          // Generate a stable message ID based on content and timestamp
-          const messageId = data.id || `${data.senderId}-${data.timestamp}-${data.content}`;
-          
-          // Skip if we've already processed this message
-          if (processedMessageIds.current.has(messageId)) {
-            console.log('Skipping duplicate message:', messageId);
+          if (processedMessageIds.current.has(data.id)) {
             return;
           }
 
-          // Rate limit messages from the same user
-          const now = Date.now();
-          const lastMessageTime = lastMessageTimestampRef.current[data.senderId] || 0;
-          if (now - lastMessageTime < 100) {
-            console.log('Rate limiting message from user:', data.senderId);
-            return;
-          }
-          lastMessageTimestampRef.current[data.senderId] = now;
-          
-          console.log('Processing new message:', data);
           const newMessage: Message = {
-            id: messageId,
+            id: data.id,
             content: data.content,
-            userId: data.userId || data.user_id || data.userid || data.senderId,
-            channelId: data.channelId || data.channel_id || channelId,
-            senderName: data.senderName || data.sender_name || data.sendername || data.username,
-            timestamp: typeof data.timestamp === 'string' 
-              ? new Date(data.timestamp).getTime() 
-              : (data.timestamp || Date.now()),
-            parentId: data.parentId,           // Add parentId
-            hasReplies: data.hasReplies,       // Add hasReplies
-            replyCount: data.replyCount        // Add replyCount
+            userId: data.userId,
+            channelId: data.channelId,
+            senderName: data.senderName,
+            timestamp: data.timestamp,
+            parentId: data.parentId,
+            reactions: {}
           };
-          
-          // Add to processed set
-          processedMessageIds.current.add(messageId);
-         
-          // Limit the size of the processed set
-          if (processedMessageIds.current.size > 1000) {
-            const oldestEntries = Array.from(processedMessageIds.current).slice(0, 500);
-            processedMessageIds.current = new Set(oldestEntries);
-          }
 
-          setMessages(prev => {
-            // First update the parent message if needed
-            let updatedMessages = data.parentId 
-              ? prev.map(msg => 
-                  msg.id === data.parentId 
-                    ? { ...msg, hasReplies: true, replyCount: (msg.replyCount || 0) + 1 }
-                    : msg
-                )
-              : prev;
-            
-            // Then add the new message
-            return [...updatedMessages, newMessage];
-          });
-
+          processedMessageIds.current.add(data.id);
+          setMessages(prev => [...prev, newMessage]);
           break;
         }
 
         case 'typing': {
           const typingUserId = data.userId;
-          if (!typingUserId) return;
+          if (typingUserId === user?.id) return;
 
           setTypingUsers(prev => {
-            // Skip if user is already in typing list
             if (prev.some(u => u.userId === typingUserId)) {
               return prev;
             }
@@ -230,7 +179,6 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
             }];
           });
 
-          // Clear typing indicator after 3 seconds
           setTimeout(() => {
             setTypingUsers(prev => prev.filter(u => u.userId !== typingUserId));
           }, 3000);
@@ -270,9 +218,15 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
       }
     };
 
-    eventEmitter.addEventListener(WS_MESSAGE_EVENT, handleMessage as EventListener);
-    return () => eventEmitter.removeEventListener(WS_MESSAGE_EVENT, handleMessage as EventListener);
-  }, [channelId, eventEmitter, ws]);
+    eventEmitter.addEventListener('ws-message', handleMessage as EventListener);
+    return () => {
+      eventEmitter.removeEventListener('ws-message', handleMessage as EventListener);
+    };
+  }, [eventEmitter, user?.id]);
+
+  const sendTyping = useCallback(() => {
+    wsSendTyping();
+  }, [wsSendTyping]);
 
   return (
     <MessageContext.Provider value={{
@@ -289,7 +243,6 @@ export function MessageProvider({ children, channelId, isDM = false }: MessagePr
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useMessages() {
   const context = useContext(MessageContext);
   if (context === undefined) {
