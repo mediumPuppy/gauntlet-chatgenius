@@ -106,12 +106,9 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
       <div className="transition-opacity duration-300" style={{ opacity: loading || channelsLoading ? 0.3 : 1 }}>
         {/* Organization Name */}
         <div className="px-4 py-2 flex items-center justify-between border-b border-primary-600">
-          <h1 className="text-white font-bold">brobro org</h1>
-          <button className="text-primary-200">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+          <h1 className="text-white font-bold">
+            <span>{currentOrganization?.name}</span>
+          </h1>
         </div>
 
         {/* Regular Channels */}

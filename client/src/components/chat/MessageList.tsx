@@ -2,9 +2,17 @@ import { useEffect, useRef, useState, useCallback, memo, useMemo } from 'react';
 import { useMessages } from '../../contexts/MessageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Message as MessageType } from '../../types/message';
-
+import { useNavigate } from 'react-router-dom';
+  
 // Memoized Message component
 const Message = memo(({ message }: { message: MessageType }) => {
+  const navigate = useNavigate();
+
+  // Define this function inside the component but outside of renderContent
+  function handleThreadClick() {
+    navigate(`/thread/${message.id}`);
+  }
+
   const renderContent = (content: string) => {
     // Check for image markdown syntax: ![alt](url)
     const imageMatch = content.match(/!\[(.*?)\]\((.*?)\)/);
@@ -46,7 +54,7 @@ const Message = memo(({ message }: { message: MessageType }) => {
   };
 
   return (
-    <div className="flex items-start space-x-3 p-2 hover:bg-gray-50">
+    <div className="flex items-start space-x-3 p-2 hover:bg-gray-50 group">
       <div className="flex-shrink-0">
         <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
           {message.senderName[0].toUpperCase()}
@@ -61,6 +69,23 @@ const Message = memo(({ message }: { message: MessageType }) => {
         </div>
         {renderContent(message.content)}
       </div>
+
+      {/* This button is hidden by default, visible on hover */}
+      {message.replyCount && message.replyCount > 0 ? (
+        <button
+          onClick={handleThreadClick}
+          className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline ml-2"
+        >
+          Thread ({message.replyCount})
+        </button>
+      ) : (
+        <button
+          onClick={handleThreadClick}
+          className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline ml-2"
+        >
+          Reply
+        </button>
+      )}
     </div>
   );
 });

@@ -11,6 +11,9 @@ export interface Message {
   dmId?: string;
   senderName: string;
   timestamp: number;
+  parentId?: string;
+  hasReplies?: boolean;
+  replyCount?: number;
 }
 
 interface CreateMessageData {

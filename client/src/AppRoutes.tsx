@@ -10,6 +10,8 @@ import ChatPage from './pages/ChatPage';
 import OrganizationOnboardingPage from './pages/OrganizationOnboardingPage';
 import OrganizationSettingsPage from './pages/OrganizationSettingsPage';
 import { ChannelProvider } from './contexts/ChannelContext';
+import ThreadPage from './pages/ThreadPage';
+
 
 export const AppRoutes: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -51,6 +53,8 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/thread/:messageId" element={<ThreadPage />} />
+
       <Route
         path="/organization/settings"
         element={
@@ -63,6 +67,7 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      
       <Route
         path="/chat/*"
         element={

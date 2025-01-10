@@ -15,7 +15,7 @@ interface Message {
 }
 
 export const createMessage = async (req: AuthRequest, res: Response): Promise<void> => {
-  const { content, channelId, dmId } = req.body;
+  const { content, channelId, dmId, parentId } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
@@ -62,9 +62,18 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       `INSERT INTO messages (id, content, user_id, channel_id, dm_id, created_at) 
        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [messageId, content, userId, channelId, dmId]
+      [messageId, content, userId, channelId, dmId, parentId || null]
     );
-
+    // 2. If this is a reply (parentId provided), update parent counters
+    if (parentId) {
+      await pool.query(
+        `UPDATE messages
+         SET has_replies = true,
+             reply_count = reply_count + 1
+         WHERE id = $1`,
+        [parentId]
+      );
+    }
     // Get sender info
     const sender = await pool.query(
       'SELECT username FROM users WHERE id = $1',
@@ -113,6 +122,7 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
          FROM messages m
          JOIN users u ON m.user_id = u.id
          WHERE m.dm_id = $1
+         AND m.parent_id IS NULL
          AND EXISTS (
            SELECT 1 FROM direct_messages dm
            WHERE dm.id = m.dm_id
@@ -131,6 +141,7 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
          FROM messages m
          JOIN users u ON m.user_id = u.id
          WHERE m.channel_id = $1
+         AND m.parent_id IS NULL
          AND EXISTS (
            SELECT 1 FROM channel_members cm
            WHERE cm.channel_id = m.channel_id
@@ -157,4 +168,114 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
     console.error('Failed to get messages:', error);
     res.status(500).json({ error: 'Failed to get messages' });
   }
-}; 
+};
+
+export const getMainChatMessages = async (req: AuthRequest, res: Response) => {
+  try {
+    // Example query: fetch top-level messages (no parent)
+    const { rows } = await pool.query(
+      `SELECT * 
+       FROM messages 
+       WHERE channel_id = $1 
+         AND parent_id IS NULL
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [req.query.channelId] // or however you pass the channelId
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching main chat messages:', error);
+    res.status(500).json({ error: 'Failed to fetch main-chat messages' });
+  }
+};
+
+export const getThreadMessages = async (req: AuthRequest, res: Response) => {
+  try {
+    const { messageId } = req.params;
+
+    // 1. Fetch the parent message
+    const parentResult = await pool.query(
+      'SELECT * FROM messages WHERE id = $1',
+      [messageId]
+    );
+    if (parentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Parent message not found' });
+    }
+    const parent = parentResult.rows[0];
+
+    // 2. Fetch replies
+    const repliesResult = await pool.query(
+      `SELECT *
+       FROM messages
+       WHERE parent_id = $1
+       ORDER BY created_at ASC`,
+      [messageId]
+    );
+    const replies = repliesResult.rows;
+
+    // Combine
+    res.json({ parent, replies });
+  } catch (error) {
+    console.error('Error fetching thread messages:', error);
+    res.status(500).json({ error: 'Failed to fetch thread messages' });
+  }
+};
+
+// export const deleteMessage = async (req: AuthRequest, res: Response) => {
+//   const { messageId } = req.params;
+//   const userId = req.user?.id;
+
+//   const client = await pool.connect();
+//   try {
+//     await client.query('BEGIN');
+
+//     // 1. Get the message info
+//     const msgResult = await client.query(
+//       'SELECT parent_id FROM messages WHERE id = $1',
+//       [messageId]
+//     );
+//     if (msgResult.rows.length === 0) {
+//       await client.query('ROLLBACK');
+//       return res.status(404).json({ error: 'Message not found' });
+//     }
+//     const { parent_id } = msgResult.rows[0];
+
+//     // 2. Actually delete the message
+//     await client.query('DELETE FROM messages WHERE id = $1', [messageId]);
+
+//     // 3. If it was a reply, decrement parent counters
+//     if (parent_id) {
+//       await client.query(
+//         `UPDATE messages
+//          SET reply_count = reply_count - 1
+//          WHERE id = $1`,
+//         [parent_id]
+//       );
+
+//       // Check if we should reset has_replies to false
+//       const checkResult = await client.query(
+//         `SELECT reply_count
+//          FROM messages
+//          WHERE id = $1`,
+//         [parent_id]
+//       );
+//       if (checkResult.rows[0].reply_count <= 0) {
+//         await client.query(
+//           `UPDATE messages
+//            SET has_replies = false
+//            WHERE id = $1`,
+//           [parent_id]
+//         );
+//       }
+//     }
+
+//     await client.query('COMMIT');
+//     res.json({ success: true });
+//   } catch (error) {
+//     await client.query('ROLLBACK');
+//     console.error('Error deleting message:', error);
+//     res.status(500).json({ error: 'Failed to delete message' });
+//   } finally {
+//     client.release();
+//   }
+// }; 
