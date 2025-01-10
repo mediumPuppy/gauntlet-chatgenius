@@ -1,43 +1,15 @@
 import { Pool, PoolConfig } from 'pg';
 
-// Debug environment variables
-console.log('Environment variables:', {
-  DATABASE_URL: process.env.DATABASE_URL ? '[EXISTS]' : '[MISSING]',
-  PGUSER: process.env.PGUSER ? '[EXISTS]' : '[MISSING]',
-  PGPASSWORD: process.env.PGPASSWORD ? '[EXISTS]' : '[MISSING]',
-  PGHOST: process.env.PGHOST ? '[EXISTS]' : '[MISSING]',
-  PGPORT: process.env.PGPORT ? '[EXISTS]' : '[MISSING]',
-  PGDATABASE: process.env.PGDATABASE ? '[EXISTS]' : '[MISSING]',
-  NODE_ENV: process.env.NODE_ENV
-});
-
-// Force SSL in production
-const isProduction = process.env.NODE_ENV === 'production';
-
-export const config: PoolConfig = process.env.DATABASE_URL
-  ? {
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    }
-  : {
-      user: process.env.PGUSER,
-      password: process.env.PGPASSWORD,
-      host: process.env.PGHOST,
-      port: parseInt(process.env.PGPORT || '5432'),
-      database: process.env.PGDATABASE,
-      ssl: isProduction ? { rejectUnauthorized: false } : false,
-  };
-
-// Debug final config
-console.log('Final database config:', {
-  connectionString: process.env.DATABASE_URL ? '[REDACTED]' : undefined,
-  host: config.host || '[from connection string]',
-  database: config.database || '[from connection string]',
-  port: config.port || '[from connection string]',
-  ssl: config.ssl
-});
+export const config: PoolConfig = {
+  user: process.env.DB_USER || 'chatgenius',
+  password: process.env.DB_PASSWORD || 'chatgenius',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'chatgenius',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 10000,
+};
 
 const pool = new Pool(config);
 
@@ -58,5 +30,4 @@ export async function testConnection() {
   }
 }
 
-export { pool };
 export default pool; 
