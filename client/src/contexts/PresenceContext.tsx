@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useOrganization } from './OrganizationContext';
 import { useWebSocket, WS_MESSAGE_EVENT } from '../hooks/useWebSocket';
