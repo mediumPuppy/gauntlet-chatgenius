@@ -5,6 +5,7 @@ import { MessageInput } from './MessageInput';
 import { API_URL } from '../../services/config';
 import { MessageProvider } from '../../contexts/MessageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMessages } from '../../contexts/MessageContext';
 
 interface ThreadPanelProps {
   messageId: string;
@@ -15,7 +16,9 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
   const [parent, setParent] = useState<Message | null>(null);
   const [replies, setReplies] = useState<Message[]>([]);
   const { token } = useAuth();
+  const { messages } = useMessages();
 
+  // Initial fetch of thread data
   useEffect(() => {
     async function fetchThread() {
       try {
@@ -40,6 +43,14 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
       fetchThread();
     }
   }, [messageId, token]);
+
+  // Update replies when new messages come in
+  useEffect(() => {
+    const newReplies = messages.filter(msg => msg.parentId === messageId);
+    if (newReplies.length > replies.length) {
+      setReplies(prev => [...prev, ...newReplies.slice(prev.length)]);
+    }
+  }, [messages, messageId, replies.length]);
 
   return (
     <div className="w-96 border-l border-gray-200 h-full flex flex-col bg-white">
