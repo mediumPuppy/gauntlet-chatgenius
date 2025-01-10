@@ -47,11 +47,35 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
 
   // Update replies when new messages or reactions come in
   useEffect(() => {
-    const newReplies = messages.filter(msg => msg.parentId === messageId);
-    if (JSON.stringify(newReplies) !== JSON.stringify(replies)) {
-      setReplies(newReplies);
+    // Get all messages that belong to this thread
+    const threadMessages = messages.filter(msg => msg.parentId === messageId);
+    
+    // Merge existing replies with new messages
+    setReplies(prevReplies => {
+      const existingIds = new Set(prevReplies.map(reply => reply.id));
+      const newReplies = threadMessages.filter(msg => !existingIds.has(msg.id));
+      
+      if (newReplies.length > 0) {
+        return [...prevReplies, ...newReplies].sort((a, b) => {
+          const timeA = new Date(a.timestamp).getTime();
+          const timeB = new Date(b.timestamp).getTime();
+          return timeA - timeB;
+        });
+      }
+      return prevReplies;
+    });
+
+    // Update parent message if it exists in the messages array
+    const updatedParent = messages.find(msg => msg.id === messageId);
+    if (updatedParent && parent) {
+      setParent(current => ({
+        ...current!,
+        reactions: updatedParent.reactions || {},
+        replyCount: updatedParent.replyCount,
+        hasReplies: updatedParent.hasReplies
+      }));
     }
-  }, [messages, messageId]);
+  }, [messages, messageId, parent]);
 
   return (
     <div className="w-96 border-l border-gray-200 h-full flex flex-col bg-white">
