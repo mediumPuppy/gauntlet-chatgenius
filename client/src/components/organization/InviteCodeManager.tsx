@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 
-const API_URL = 'http://localhost:3000/api';
+import { API_URL } from '../../services/config';
+
 
 interface InviteCode {
   code: string;
