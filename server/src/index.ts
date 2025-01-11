@@ -20,7 +20,6 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-const wsPort = Number(process.env.WS_PORT) || 3001;
 
 // Initialize database
 initializeDatabase()
@@ -106,7 +105,7 @@ const server = app.listen(port, () => {
 
 // Initialize WebSocket server with proper CORS
 const wss = new WebSocketServer({ 
-  port: wsPort,
+  server,
   verifyClient: (info, cb) => {
     const origin = info.origin;
     const allowedOrigins = process.env.NODE_ENV === 'production'
@@ -129,7 +128,7 @@ wss.on('connection', (ws: WebSocketClient) => {
 });
 
 wss.on('listening', () => {
-  console.log(`WebSocket Server is running on port ${wsPort}`);
+  console.log(`WebSocket Server is listening.`);
 });
 
 process.on('SIGTERM', () => {
