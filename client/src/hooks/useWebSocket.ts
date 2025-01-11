@@ -9,7 +9,7 @@ export const WS_MESSAGE_EVENT = 'ws-message';
 
 // For Vite, remember to configure your .env with VITE_WS_URL
 const DEFAULT_WS_URL = 'ws://localhost:3001/ws';
-const WS_URL = import.meta.env.VITE_WS_URL || DEFAULT_WS_URL;
+const WS_URL = process.env.VITE_WS_URL || DEFAULT_WS_URL;
 
 export function useWebSocket(channelId: string, isDM = false) {
   const ws = useRef<WebSocket | null>(null);

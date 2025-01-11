@@ -69,7 +69,7 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
         throw new Error('Failed to upload file');
       }
 
-      const fileUrl = `https://${import.meta.env.VITE_S3_BUCKET_NAME}.s3.${import.meta.env.VITE_AWS_REGION}.amazonaws.com/${key}`;
+      const fileUrl = `https://chatgenius-joml.s3.us-east-2.amazonaws.com/${key}`;
       
       let messageContent;
       if (file.type.startsWith('image/')) {
