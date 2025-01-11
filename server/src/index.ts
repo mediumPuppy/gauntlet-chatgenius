@@ -33,13 +33,7 @@ initializeDatabase()
 
 // CORS configuration
 const corsOptions: CorsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? [
-        process.env.CORS_ORIGIN || "",
-        process.env.VITE_WS_URL || "",
-        'http://localhost:3000'
-      ]
-    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+  origin: '*',  // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'Upgrade', 'Connection'],
   exposedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Upgrade', 'Connection'],
