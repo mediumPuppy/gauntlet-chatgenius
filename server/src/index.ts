@@ -35,15 +35,21 @@ initializeDatabase()
 // CORS configuration
 const corsOptions: CorsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? (process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : ['*']) // Fallback to allow all if not set
-    : ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    ? [process.env.CORS_ORIGIN || 'https://gauntlet-chatgenius-production.up.railway.app']
+    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 204,
+  preflightContinue: false
 };
 
-// Middleware
+// Apply CORS middleware before routes
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Enable pre-flight for all routes
+
+// Middleware
 app.use(express.json());
 
 // Serve static files from the React build
