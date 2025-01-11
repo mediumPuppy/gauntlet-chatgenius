@@ -14,6 +14,7 @@ import pool from './config/database';
 import { WebSocketHandler } from './websocket/handler';
 import { WebSocketClient } from './websocket/types';
 import searchRoutes from './routes/search';
+import path from 'path';
 
 dotenv.config();
 
@@ -66,6 +67,19 @@ app.get('/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
+});
+
+// Serve static files from the React build
+app.use(express.static(path.join(__dirname, '../../client/dist')));
+
+// Handle API root
+app.get('/api', (req: Request, res: Response) => {
+  res.json({ message: 'ChatGenius API is running' });
+});
+
+// Handle all other routes by serving the React app
+app.get('*', (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
 });
 
 // Start HTTP server
