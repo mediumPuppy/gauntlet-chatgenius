@@ -46,7 +46,10 @@ const corsOptions: CorsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Routes
+// Serve static files from the React build
+app.use(express.static(path.join(__dirname, '../../client/dist')));
+
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/users', userRoutes);
@@ -55,26 +58,18 @@ app.use('/api/dm', dmRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/search', searchRoutes);
-// Basic route
-app.get('/', (req: Request, res: Response) => {
+
+// API-specific routes
+app.get('/api', (req: Request, res: Response) => {
   res.json({ message: 'ChatGenius API is running' });
 });
 
-// Add health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/api/health', (req: Request, res: Response) => {
   res.json({ 
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
-});
-
-// Serve static files from the React build
-app.use(express.static(path.join(__dirname, '../../client/dist')));
-
-// Handle API root
-app.get('/api', (req: Request, res: Response) => {
-  res.json({ message: 'ChatGenius API is running' });
 });
 
 // Handle all other routes by serving the React app
