@@ -91,6 +91,7 @@ const wss = new WebSocketServer({
 });
 
 const wsHandler = new WebSocketHandler(wss);
+global.wss = wsHandler;
 
 wss.on('connection', (ws: WebSocketClient) => {
   wsHandler.handleConnection(ws);
