@@ -135,7 +135,7 @@ export function useWebSocket(channelId: string, isDM = false) {
   }, [connect, clearTimeouts]);
 
   const sendMessage = useCallback(
-    (content: string, parentId?: string) => {
+    (content: string, id: string, parentId?: string) => {
       if (connectionState !== 'CONNECTED' || !ws.current) {
         console.warn('WebSocket is not connected. Message will not be sent.', content);
         return;
@@ -143,6 +143,7 @@ export function useWebSocket(channelId: string, isDM = false) {
       console.log('Sending message with parentId:', parentId);
       const payload: WebSocketMessage = {
         type: 'message',
+        id,
         content,
         channelId,
         isDM,

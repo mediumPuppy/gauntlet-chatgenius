@@ -49,6 +49,15 @@ export async function addReaction(req: AuthRequest, res: Response) {
     if (message.rows.length > 0) {
       const { channel_id, dm_id, parent_id } = message.rows[0];
       // Emit WebSocket event
+      console.log("Emitting WebSocket event:", {
+        type: 'reaction',
+        messageId,
+        userId,
+        emoji,
+        action,
+        parentId: parent_id
+      });
+      console.log("Broadcasting to channel:", global.wss);
       global.wss?.handleReaction(null, {
         type: 'reaction',
         messageId,

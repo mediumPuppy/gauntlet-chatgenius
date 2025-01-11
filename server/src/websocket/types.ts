@@ -1,19 +1,20 @@
-import WebSocket from 'ws';
-import { User } from '../models/user';
+import WebSocket from "ws";
+import { User } from "../models/user";
+import { UUID } from "crypto";
 
 export interface WebSocketClient extends WebSocket {
   userId?: string;
   isAlive?: boolean;
 }
 
-export type WebSocketMessageType = 
-  | 'message'
-  | 'typing'
-  | 'read'
-  | 'error'
-  | 'auth'
-  | 'presence'
-  | 'reaction';
+export type WebSocketMessageType =
+  | "message"
+  | "typing"
+  | "read"
+  | "error"
+  | "auth"
+  | "presence"
+  | "reaction";
 
 export interface WebSocketMessage {
   type: WebSocketMessageType;
@@ -25,7 +26,8 @@ export interface WebSocketMessage {
 }
 
 export interface ChatMessage extends WebSocketMessage {
-  type: 'message';
+  id: UUID;
+  type: "message";
   channelId: string;
   content: string;
   senderId: string;
@@ -35,7 +37,7 @@ export interface ChatMessage extends WebSocketMessage {
 }
 
 export interface TypingMessage extends WebSocketMessage {
-  type: 'typing';
+  type: "typing";
   channelId: string;
   userId: string;
   username: string;
@@ -43,7 +45,7 @@ export interface TypingMessage extends WebSocketMessage {
 }
 
 export interface ReadMessage extends WebSocketMessage {
-  type: 'read';
+  type: "read";
   channelId: string;
   userId: string;
   messageId: string;
@@ -51,12 +53,12 @@ export interface ReadMessage extends WebSocketMessage {
 }
 
 export interface ErrorMessage extends WebSocketMessage {
-  type: 'error';
+  type: "error";
   error: string;
 }
 
 export interface PresenceMessage extends WebSocketMessage {
-  type: 'presence';
+  type: "presence";
   userId: string;
   username: string;
   isOnline: boolean;
@@ -64,10 +66,10 @@ export interface PresenceMessage extends WebSocketMessage {
 }
 
 export interface ReactionMessage extends WebSocketMessage {
-  type: 'reaction';
+  type: "reaction";
   messageId: string;
   userId: string;
   emoji: string;
-  action: 'added' | 'removed';
+  action: "added" | "removed";
   parentId?: string;
 }

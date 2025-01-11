@@ -18,7 +18,8 @@ export interface TypingUser {
 }
 
 export interface WebSocketMessage {
-  type: 'message' | 'typing' | 'read' | 'error' | 'auth';
+  type: "message" | "typing" | "read" | "error" | "auth";
+  id?: string;
   channelId: string;
   content?: string;
   timestamp?: number;
