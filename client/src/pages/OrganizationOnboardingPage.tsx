@@ -2,44 +2,40 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { Navigation } from '../components/common/Navigation';
+import { useMutation } from '@tanstack/react-query';
 
 export default function OrganizationOnboardingPage() {
   const [organizationName, setOrganizationName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { createOrganization, joinOrganization } = useOrganization();
 
-  const handleCreateOrganization = async (e: React.FormEvent) => {
+  const createOrgMutation = useMutation({
+    mutationFn: createOrganization,
+    onSuccess: () => navigate('/chat'),
+    onError: (err) => setError(err instanceof Error ? err.message : 'Failed to create organization')
+  });
+
+  const joinOrgMutation = useMutation({
+    mutationFn: joinOrganization,
+    onSuccess: () => navigate('/chat'),
+    onError: (err) => setError(err instanceof Error ? err.message : 'Failed to join organization')
+  });
+
+  const handleCreateOrganization = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
-
-    try {
-      await createOrganization(organizationName);
-      navigate('/chat');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create organization');
-    } finally {
-      setIsLoading(false);
-    }
+    createOrgMutation.mutate(organizationName);
   };
 
-  const handleJoinOrganization = async (e: React.FormEvent) => {
+  const handleJoinOrganization = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
-
-    try {
-      await joinOrganization(inviteCode);
-      navigate('/chat');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join organization');
-    } finally {
-      setIsLoading(false);
-    }
+    joinOrgMutation.mutate(inviteCode);
   };
+
+  const isLoading = createOrgMutation.isPending || joinOrgMutation.isPending;
 
   return (
     <div className="min-h-screen bg-primary-50 flex flex-col">

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Organization {
   id: string;
@@ -10,10 +11,10 @@ interface Organization {
 
 interface OrganizationContextType {
   currentOrganization: Organization | null;
+  isLoading: boolean;
   organizations: Organization[];
   userRole: string | null;
   setCurrentOrganization: (org: Organization | null) => void;
-  refreshOrganizations: () => Promise<void>;
   createOrganization: (name: string) => Promise<Organization>;
   inviteMember: (email: string) => Promise<void>;
   joinOrganization: (inviteCode: string) => Promise<void>;
@@ -23,94 +24,98 @@ const OrganizationContext = createContext<OrganizationContextType | null>(null);
 
 export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, token } = useAuth();
+  const queryClient = useQueryClient();
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  const refreshOrganizations = useCallback(async () => {
-    if (!user || !token) return;
-
-    try {
+  const { 
+    data: organizations = [], 
+    isLoading 
+  } = useQuery({
+    queryKey: ['organizations', user?.id],
+    queryFn: async () => {
+      console.log('Fetching organizations with token:', !!token);
+      if (!user || !token) return [];
       const response = await fetch('/api/organizations/user', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      const text = await response.text();
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch organizations: ${text}`);
-      }
-      
-      if (!text.trim()) {
-        setOrganizations([]);
-        return;
-      }
+      console.log('Organizations response status:', response.status);
+      const data = await response.json();
+      console.log('Organizations data:', data);
+      return data;
+    },
+    enabled: !!user && !!token
+  });
 
-      try {
-        // Try to clean the response text of any BOM or whitespace
-        const cleanText = text.trim().replace(/^\uFEFF/, '');
-        const orgs = JSON.parse(cleanText);
-        if (!Array.isArray(orgs)) {
-          throw new Error('Invalid response format');
-        }
-        setOrganizations(orgs);
-
-        // Set current organization from localStorage or first available
-        const savedOrgId = localStorage.getItem('currentOrganizationId');
-        const targetOrg = orgs.find((org: Organization) => org.id === savedOrgId) || orgs[0];
-        if (targetOrg) {
-          setCurrentOrganization(targetOrg);
-          localStorage.setItem('currentOrganizationId', targetOrg.id);
-        }
-      } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
-        throw new Error(`Invalid JSON response: ${text}`);
-      }
-    } catch (error) {
-      console.error('Error fetching organizations:', error);
-      setOrganizations([]);
+  useEffect(() => {
+    if (organizations.length > 0 && !currentOrganization) {
+      setCurrentOrganization(organizations[0]);
     }
-  }, [user, token]);
+  }, [organizations, currentOrganization]);
 
-  const createOrganization = async (name: string): Promise<Organization> => {
-    if (!token) throw new Error('Not authenticated');
+  const createOrgMutation = useMutation({
+    mutationFn: async (name: string) => {
+      if (!token) throw new Error('Not authenticated');
 
-    const response = await fetch('/api/organizations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ name })
-    });
-
-    if (!response.ok) throw new Error('Failed to create organization');
-
-    const newOrg = await response.json();
-    
-    // Create a default "general" channel
-    try {
-      await fetch('/api/channels', {
+      const response = await fetch('/api/organizations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          name: 'general',
-          is_dm: false,
-          organization_id: newOrg.id
-        })
+        body: JSON.stringify({ name })
       });
-    } catch (error) {
-      console.error('Failed to create default channel:', error);
-    }
 
-    await refreshOrganizations();
-    return newOrg;
-  };
+      if (!response.ok) throw new Error('Failed to create organization');
+
+      const newOrg = await response.json();
+      
+      try {
+        await fetch('/api/channels', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            name: 'general',
+            is_dm: false,
+            organization_id: newOrg.id
+          })
+        });
+      } catch (error) {
+        console.error('Failed to create default channel:', error);
+      }
+
+      return newOrg;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    }
+  });
+
+  const joinOrgMutation = useMutation({
+    mutationFn: async (inviteCode: string) => {
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch('/api/organizations/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ inviteCode })
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to join organization');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    }
+  });
 
   const inviteMember = async (email: string): Promise<void> => {
     if (!token || !currentOrganization) throw new Error('Not authenticated or no organization selected');
@@ -127,36 +132,12 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!response.ok) throw new Error('Failed to invite member');
   };
 
-  const joinOrganization = async (inviteCode: string): Promise<void> => {
-    if (!token) throw new Error('Not authenticated');
-
-    const response = await fetch('/api/organizations/join', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ inviteCode })
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || 'Failed to join organization');
-    }
-
-    await refreshOrganizations();
-  };
-
   useEffect(() => {
-    if (user) {
-      refreshOrganizations();
-    } else {
-      setOrganizations([]);
+    if (!user) {
       setCurrentOrganization(null);
     }
-  }, [user, refreshOrganizations]);
+  }, [user]);
 
-  // Fetch user role when current organization changes
   useEffect(() => {
     const fetchUserRole = async () => {
       if (!currentOrganization || !token) {
@@ -188,13 +169,13 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     <OrganizationContext.Provider
       value={{
         currentOrganization,
+        isLoading,
         organizations,
         userRole,
         setCurrentOrganization,
-        refreshOrganizations,
-        createOrganization,
-        inviteMember,
-        joinOrganization
+        createOrganization: createOrgMutation.mutateAsync,
+        joinOrganization: joinOrgMutation.mutateAsync,
+        inviteMember
       }}
     >
       {children}
@@ -202,7 +183,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useOrganization = () => {
   const context = useContext(OrganizationContext);
   if (!context) {

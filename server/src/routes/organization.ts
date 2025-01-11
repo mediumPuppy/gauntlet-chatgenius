@@ -110,7 +110,18 @@ router.post('/join', authenticateToken, async (req: Request, res: Response): Pro
       return;
     }
 
-    // Verify invite code and get organization ID
+    // First verify the user exists
+    const userExists = await pool.query(
+      'SELECT 1 FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userExists.rows.length === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Rest of your existing code for verifying invite code and adding member
     const inviteResult = await pool.query(
       `SELECT organization_id, expires_at
        FROM organization_invites

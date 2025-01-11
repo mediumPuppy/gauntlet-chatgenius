@@ -78,6 +78,17 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+// Add error handling middleware at the end (before the * route)
+app.use((err: any, req: Request, res: Response, next: any) => {
+  console.error('Global error handler:', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method
+  });
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 // Handle all other routes by serving the React app
 app.get('*', (req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
@@ -89,31 +100,48 @@ const server = app.listen(port, () => {
 });
 
 // Initialize WebSocket server with proper CORS
+console.log('Initializing WebSocket server with config:', {
+  port,
+  path: '/ws',
+  server: !!server
+});
+
 const wss = new WebSocketServer({ 
   server,
+  path: '/ws',
   verifyClient: (info, cb) => {
-    const origin = info.origin;
-    const allowedOrigins = process.env.NODE_ENV === 'production'
-      ? [process.env.CORS_ORIGIN]
-      : ['http://localhost:5173', 'http://127.0.0.1:5173'];
-    
-    if (!allowedOrigins.includes(origin)) {
-      cb(false, 403, 'Forbidden');
-      return;
-    }
+    console.log('WebSocket verifyClient called:', {
+      url: info.req.url,
+      headers: info.req.headers,
+      origin: info.origin
+    });
     cb(true);
   }
 });
 
+// Add this to check WebSocket server state
+console.log('WebSocket server state:', {
+  clients: wss.clients.size,
+  address: server.address(),
+  listening: server.listening
+});
+
 const wsHandler = new WebSocketHandler(wss);
+console.log('WebSocket handler created:', !!wsHandler);
 global.wss = wsHandler;
+console.log('Global WSS set:', !!global.wss);
 
 wss.on('connection', (ws: WebSocketClient) => {
+  console.log('WebSocket connection received');
   wsHandler.handleConnection(ws);
 });
 
+wss.on('error', (error) => {
+  console.error('WebSocket server error:', error);
+});
+
 wss.on('listening', () => {
-  console.log(`WebSocket Server is listening.`);
+  console.log('WebSocket Server is listening on port', port);
 });
 
 process.on('SIGTERM', () => {

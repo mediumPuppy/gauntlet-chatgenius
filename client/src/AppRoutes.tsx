@@ -14,11 +14,11 @@ import ThreadPage from './pages/ThreadPage';
 
 
 export const AppRoutes: React.FC = () => {
-  const { user, isLoading } = useAuth();
-  const { currentOrganization } = useOrganization();
+  const { user, isLoading: authLoading } = useAuth();
+  const { currentOrganization, isLoading: orgLoading } = useOrganization();
 
-  // Show loading state while checking auth
-  if (isLoading) {
+  // Show loading state while checking auth OR organization status
+  if (authLoading || (user && orgLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
@@ -39,11 +39,11 @@ export const AppRoutes: React.FC = () => {
       />
       <Route 
         path="/login" 
-        element={user && !isLoading ? <Navigate to={authenticatedRedirect} replace /> : <LoginPage />} 
+        element={user && !authLoading ? <Navigate to={authenticatedRedirect} replace /> : <LoginPage />} 
       />
       <Route 
         path="/signup" 
-        element={user && !isLoading ? <Navigate to={authenticatedRedirect} replace /> : <SignupPage />} 
+        element={user && !authLoading ? <Navigate to={authenticatedRedirect} replace /> : <SignupPage />} 
       />
       <Route
         path="/organization-onboarding"

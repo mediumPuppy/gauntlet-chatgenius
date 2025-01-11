@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { WebSocketMessage } from '../types/message';
+import { getEnvVar } from '../services/config';
 
 type ConnectionState = 'PREPARING' | 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED';
 
@@ -8,8 +9,8 @@ const wsEventEmitter = new EventTarget();
 export const WS_MESSAGE_EVENT = 'ws-message';
 
 // For Vite, remember to configure your .env with VITE_WS_URL
-const DEFAULT_WS_URL = 'ws://localhost:3001/ws';
-const WS_URL = process.env.VITE_WS_URL || DEFAULT_WS_URL;
+const DEFAULT_WS_URL = 'ws://localhost:3000/ws';
+const WS_URL = getEnvVar('VITE_WS_URL', DEFAULT_WS_URL);
 
 export function useWebSocket(channelId: string, isDM = false) {
   const ws = useRef<WebSocket | null>(null);
@@ -57,22 +58,22 @@ export function useWebSocket(channelId: string, isDM = false) {
       // This is a deliberate close, so reset reconnect attempts
       reconnectAttempts.current = 0;
       setShowReconnecting(false);
-
+      console.log('Closing existing WebSocket connection');
       ws.current.close(1000, 'Reconnecting');
       ws.current = null;
     }
 
     isConnecting.current = true;
     setConnectionState('CONNECTING');
-
+    console.log("Connecting to WebSocket with URL:", WS_URL);
     try {
       // No longer referencing "process.env"
       ws.current = new WebSocket(WS_URL);
-
+      console.log("WebSocket created");
       ws.current.onopen = () => {
         setConnectionState('CONNECTED');
         isConnecting.current = false;
-
+        console.log("WebSocket connected");
         // Reset reconnect attempts and hide bubble
         reconnectAttempts.current = 0;
         setShowReconnecting(false);
@@ -94,7 +95,7 @@ export function useWebSocket(channelId: string, isDM = false) {
       ws.current.onclose = (event) => {
         isConnecting.current = false;
         setConnectionState('DISCONNECTED');
-
+        console.log("WebSocket closed");``
         // Attempt to reconnect if not a normal close
         if (event.code !== 1000) {
           if (reconnectAttempts.current < maxReconnectAttempts) {

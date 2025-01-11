@@ -4,20 +4,25 @@ import { OrganizationProvider } from './contexts/OrganizationContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { PresenceProvider } from './contexts/PresenceContext';
 import { AppRoutes } from './AppRoutes';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <OrganizationProvider>
-          <WebSocketProvider>
-            <PresenceProvider>
-              <AppRoutes />
-            </PresenceProvider>
-          </WebSocketProvider>
-        </OrganizationProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <OrganizationProvider>
+            <WebSocketProvider>
+              <PresenceProvider>
+                <AppRoutes />
+              </PresenceProvider>
+            </WebSocketProvider>
+          </OrganizationProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

@@ -44,8 +44,10 @@ export class WebSocketHandler {
     ws: WebSocketClient,
     token: string
   ): Promise<boolean> {
+    console.log('Attempting WebSocket authentication');
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+      console.log('WebSocket authentication successful for user:', decoded.id);
       ws.userId = decoded.id;
       ws.isAlive = true;
 
@@ -58,7 +60,7 @@ export class WebSocketHandler {
       await this.broadcastPresenceUpdate(ws.userId, true);
       return true;
     } catch (error) {
-      console.error("Authentication error:", error);
+      console.error('WebSocket authentication failed:', error);
       ws.send(JSON.stringify({ type: "error", error: "Invalid token" }));
       ws.close();
       return false;
@@ -375,13 +377,15 @@ export class WebSocketHandler {
   }
 
   public handleConnection(ws: WebSocketClient) {
+    console.log('New WebSocket connection attempt');
     ws.isAlive = true;
-    ws.on("pong", () => {
+    
+    ws.on('pong', () => {
       ws.isAlive = true;
     });
 
-    ws.on("error", (err) => {
-      console.error("WebSocket client error event:", err);
+    ws.on('error', (err) => {
+      console.error('WebSocket client error:', err);
     });
 
     ws.on("message", async (message: string) => {
