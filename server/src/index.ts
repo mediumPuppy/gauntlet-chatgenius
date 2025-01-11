@@ -48,8 +48,9 @@ console.log('CORS Configuration:', {
 const corsOptions: CorsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [
-        process.env.CORS_ORIGIN || 'https://gauntlet-chatgenius-production.up.railway.app',
-        process.env.VITE_WS_URL || 'wss://websocket-server-production-e7a8.up.railway.app'
+        process.env.CORS_ORIGIN || "",
+        process.env.VITE_WS_URL || "",
+        'http://localhost:3000'
       ]
     : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
