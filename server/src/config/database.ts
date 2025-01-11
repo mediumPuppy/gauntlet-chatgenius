@@ -4,11 +4,39 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const parseDbUrl = (url: string) => {
-  const pattern = /postgres:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/;
-  const matches = url.match(pattern);
-  if (!matches) throw new Error('Invalid database URL format');
-  const [, user, password, host, port, database] = matches;
-  return { user, password, host, port: parseInt(port), database };
+  try {
+    const pattern = /^postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/;
+    const matches = url.match(pattern);
+    if (!matches) {
+      console.error('Database URL format not recognized. Expected format: postgresql://user:password@host:port/database');
+      // Just use the connection string directly
+      return {
+        connectionString: url,
+        ssl: {
+          rejectUnauthorized: false
+        }
+      };
+    }
+    const [, user, password, host, port, database] = matches;
+    return { 
+      user, 
+      password, 
+      host, 
+      port: parseInt(port), 
+      database,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    };
+  } catch (error) {
+    console.error('Failed to parse database URL, using connection string directly');
+    return {
+      connectionString: url,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    };
+  }
 };
 
 export const config: PoolConfig = process.env.DATABASE_URL
