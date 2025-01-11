@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { WS_URL } from '../services/config';
 
 interface WebSocketContextType {
   socket: WebSocket | null;
@@ -8,7 +9,6 @@ interface WebSocketContextType {
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
-const WS_URL = 'ws://localhost:3001'; // Should match your WebSocket server port
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
