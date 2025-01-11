@@ -35,11 +35,14 @@ initializeDatabase()
 // CORS configuration
 const corsOptions: CorsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.CORS_ORIGIN || 'https://gauntlet-chatgenius-production.up.railway.app']
-    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+    ? [
+        process.env.CORS_ORIGIN || 'https://gauntlet-chatgenius-production.up.railway.app',
+        process.env.VITE_WS_URL || 'wss://websocket-server-production-e7a8.up.railway.app'
+      ]
+    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'ws://localhost:3001'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Upgrade', 'Connection'],
+  exposedHeaders: ['Content-Type', 'Authorization', 'Upgrade', 'Connection'],
   credentials: true,
   optionsSuccessStatus: 204,
   preflightContinue: false
