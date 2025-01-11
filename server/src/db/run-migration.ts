@@ -1,9 +1,6 @@
-import { Pool } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
-import { config } from '../config/database';
-
-const pool = new Pool(config);
+import pool from '../config/database';
 
 async function runMigration() {
   try {

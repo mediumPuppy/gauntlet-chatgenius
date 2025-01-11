@@ -1,8 +1,19 @@
 import { Pool, PoolConfig } from 'pg';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const parseDbUrl = (url: string) => {
+  const pattern = /postgres:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/;
+  const matches = url.match(pattern);
+  if (!matches) throw new Error('Invalid database URL format');
+  const [, user, password, host, port, database] = matches;
+  return { user, password, host, port: parseInt(port), database };
+};
 
 export const config: PoolConfig = process.env.DATABASE_URL
   ? {
-      connectionString: process.env.DATABASE_URL,
+      ...parseDbUrl(process.env.DATABASE_URL),
       ssl: {
         rejectUnauthorized: false
       },
@@ -21,8 +32,8 @@ export const config: PoolConfig = process.env.DATABASE_URL
 // Add some debugging
 console.log('Database config:', {
   connectionString: process.env.DATABASE_URL ? '[REDACTED]' : undefined,
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'chatgenius',
+  host: config.host,
+  database: config.database,
   ssl: config.ssl,
   timeouts: {
     connection: config.connectionTimeoutMillis,

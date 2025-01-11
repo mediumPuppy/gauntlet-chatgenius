@@ -36,16 +36,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var pg_1 = require("pg");
 var fs = require("fs");
 var path = require("path");
-var pool = new pg_1.Pool({
-    user: 'chatgenius',
-    host: 'localhost',
-    database: 'chatgenius',
-    password: 'chatgenius',
-    port: 5432,
-});
+import pool from '../config/database';
 function runMigration() {
     return __awaiter(this, void 0, void 0, function () {
         var migrationPath, sql, error_1;

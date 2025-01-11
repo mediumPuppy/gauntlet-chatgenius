@@ -1,7 +1,4 @@
-import { Pool } from 'pg';
-import { config } from '../config/database';
-
-const pool = new Pool(config);
+import pool from '../config/database';
 
 export interface User {
   id: string;

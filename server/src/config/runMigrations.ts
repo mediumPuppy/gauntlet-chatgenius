@@ -1,10 +1,7 @@
-import { Pool } from 'pg';
-import { config } from './database';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const pool = new Pool(config);
-
+import pool from '../config/database';
 async function runMigrations() {
   try {
     // Create migrations table if it doesn't exist

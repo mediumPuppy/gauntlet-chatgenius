@@ -1,10 +1,8 @@
-import { Pool } from 'pg';
 import dotenv from 'dotenv';
-import { config } from './database';
+import pool from '../config/database';
 
 dotenv.config();
 
-const pool = new Pool(config);
 
 // Test the connection
 pool.connect((err, client, release) => {
