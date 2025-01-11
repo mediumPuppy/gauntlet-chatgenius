@@ -32,6 +32,19 @@ initializeDatabase()
     process.exit(1);
   });
 
+// Debug logging for CORS configuration
+console.log('CORS Configuration:', {
+  NODE_ENV: process.env.NODE_ENV,
+  CORS_ORIGIN: process.env.CORS_ORIGIN,
+  VITE_WS_URL: process.env.VITE_WS_URL,
+  allowedOrigins: process.env.NODE_ENV === 'production' 
+    ? [
+        process.env.CORS_ORIGIN || 'https://gauntlet-chatgenius-production.up.railway.app',
+        process.env.VITE_WS_URL || 'wss://websocket-server-production-e7a8.up.railway.app'
+      ]
+    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'ws://localhost:3001']
+});
+
 // CORS configuration
 const corsOptions: CorsOptions = {
   origin: process.env.NODE_ENV === 'production' 
