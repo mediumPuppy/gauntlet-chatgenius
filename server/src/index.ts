@@ -51,18 +51,21 @@ const corsOptions: CorsOptions = {
         process.env.CORS_ORIGIN || 'https://gauntlet-chatgenius-production.up.railway.app',
         process.env.VITE_WS_URL || 'wss://websocket-server-production-e7a8.up.railway.app'
       ]
-    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'ws://localhost:3001'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Upgrade', 'Connection'],
-  exposedHeaders: ['Content-Type', 'Authorization', 'Upgrade', 'Connection'],
+    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
   optionsSuccessStatus: 204,
+  maxAge: 3600,
   preflightContinue: false
 };
 
-// Apply CORS middleware before routes
+// Apply CORS before ANY route handlers
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Enable pre-flight for all routes
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(express.json());
