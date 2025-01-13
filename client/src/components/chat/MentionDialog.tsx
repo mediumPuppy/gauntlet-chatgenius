@@ -13,7 +13,7 @@ interface MentionDialogProps {
   position: { top: number; left: number };
 }
 
-const MentionDialog = memo(({ isOpen, onClose, onSelect, searchQuery, position }: MentionDialogProps) => {
+const MentionDialog = memo(({ isOpen, onSelect, searchQuery, position }: MentionDialogProps) => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { token } = useAuth();
