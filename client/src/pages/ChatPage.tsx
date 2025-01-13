@@ -13,6 +13,8 @@ import { usePresence } from '../contexts/PresenceContext';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { GlobalMessageSearch } from '../components/global/GlobalMessageSearch';
 import { ThreadPanel } from '../components/chat/ThreadPanel';
+import { toggleAIEnabled, getAIEnabled } from '../services/aiSettings';
+import { Tooltip } from '../components/common/Tooltip';
 
 interface DMInfo {
   id: string;
@@ -32,6 +34,8 @@ const ChatPageContent: React.FC = memo(() => {
   const { token } = useAuth();
   const { isUserOnline } = usePresence();
   const [activeThread, setActiveThread] = useState<string | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [isTogglingAI, setIsTogglingAI] = useState(false);
 
   const fetchDMInfo = useCallback(async (id: string) => {
     if (!token) {
@@ -113,6 +117,26 @@ const ChatPageContent: React.FC = memo(() => {
   const shouldShowWelcome = !dmId && !currentChannel;
   const shouldShowChat = Boolean(dmId) || Boolean(currentChannel);
 
+  useEffect(() => {
+    if (token) {
+      getAIEnabled(token)
+        .then(setAiEnabled)
+        .catch(console.error);
+    }
+  }, [token]);
+
+  const handleAIToggle = async () => {
+    try {
+      setIsTogglingAI(true);
+      const newStatus = await toggleAIEnabled(token!);
+      setAiEnabled(newStatus);
+    } catch (error) {
+      console.error('Failed to toggle AI:', error);
+    } finally {
+      setIsTogglingAI(false);
+    }
+  };
+
   return (
     <div className="flex h-screen relative">
       {/* Header */}
@@ -130,6 +154,30 @@ const ChatPageContent: React.FC = memo(() => {
           {renderHeader}
         </div>
         <div className="flex items-center space-x-4">
+          <div className="flex items-center mr-4">
+            <button
+              onClick={handleAIToggle}
+              disabled={isTogglingAI}
+              className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
+                aiEnabled ? 'bg-primary-500' : 'bg-gray-400'
+              }`}
+              role="switch"
+              aria-checked={aiEnabled}
+            >
+              <span
+                className={`${
+                  aiEnabled ? 'translate-x-6' : 'translate-x-1'
+                } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+              />
+            </button>
+            <Tooltip content="When enabled, AI will respond as you when mentioned or DMed">
+              <button className="ml-2 text-white hover:text-teal-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            </Tooltip>
+          </div>
           <button 
             onClick={() => setIsSearchOpen(true)}
             className="text-white hover:text-teal-200 transition-colors mr-2"

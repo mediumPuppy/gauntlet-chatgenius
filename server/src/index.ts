@@ -16,6 +16,7 @@ import { WebSocketClient } from './websocket/types';
 import searchRoutes from './routes/search';
 import path from 'path';
 import { createAIRouter } from './routes/ai';
+import aiSettingsRoutes from './routes/aiSettings';
 
 dotenv.config();
 
@@ -59,7 +60,7 @@ app.use(express.static(path.join(__dirname, '../../client/dist')));
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/channels', channelRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes, aiSettingsRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/dm', dmRoutes);
 app.use('/api/organizations', organizationRoutes);
