@@ -235,25 +235,23 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
   const getCursorPosition = () => {
     if (!textareaRef.current) return { top: 0, left: 0 };
     const textarea = textareaRef.current;
-    const { selectionStart, selectionEnd } = textarea;
+    const { selectionStart } = textarea;
+    const textBeforeCursor = textarea.value.substring(0, selectionStart);
     
-    // Create a temporary div to measure text
     const div = document.createElement('div');
     div.style.cssText = window.getComputedStyle(textarea, null).cssText;
     div.style.height = 'auto';
     div.style.position = 'absolute';
-    
-    const text = textarea.value.substring(0, selectionStart);
-    div.textContent = text;
+    div.textContent = textBeforeCursor;
     document.body.appendChild(div);
     
-    const textareaRect = textarea.getBoundingClientRect();
-    const { height, width } = div.getBoundingClientRect();
+    const inputRect = textarea.getBoundingClientRect();
+    const { width } = div.getBoundingClientRect();
     document.body.removeChild(div);
     
     return {
-      top: textareaRect.top + (height % parseInt(textarea.style.lineHeight || '20')),
-      left: textareaRect.left + (width % textareaRect.width)
+      top: inputRect.top - 10, // Position just above input
+      left: inputRect.left + (width % inputRect.width)
     };
   };
 
@@ -289,6 +287,15 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
 
     return () => clearTimeout(searchTimeout);
   }, [newMessage, mentionState.startIndex, token, currentOrganization]);
+
+  const renderMessageContent = () => {
+    const parts = newMessage.split(/(@\w+)/g);
+    return parts.map((part, i) => 
+      part.match(/^@\w+/) ? 
+        <span key={i} className="bg-yellow-100 rounded px-1">{part}</span> : 
+        part
+    );
+  };
 
   return (
     <div className="h-auto min-h-[5rem] max-h-[12rem] border-t p-4">
@@ -343,21 +350,27 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
             </svg>
           </button>
-          <textarea
-            value={newMessage}
-            onChange={(e) => {
-              setNewMessage(e.target.value);
-              handleTyping();
-              e.target.style.height = 'auto';
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={getPlaceholder()}
-            disabled={isDisabled || isUploading}
-            className="flex-1 bg-transparent p-3 resize-none focus:outline-none disabled:cursor-not-allowed"
-            rows={1}
-            ref={textareaRef}
-          />
+          <div className="relative flex-1">
+            <div className="absolute inset-0 p-3 pointer-events-none">
+              {renderMessageContent()}
+            </div>
+            <textarea
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                handleTyping();
+                e.target.style.height = 'auto';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 10)}px`;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={getPlaceholder()}
+              disabled={isDisabled || isUploading}
+              className="flex-1 bg-transparent p-3 resize-none focus:outline-none disabled:cursor-not-allowed w-full h-full"
+              style={{ color: 'transparent', caretColor: 'black' }}
+              rows={1}
+              ref={textareaRef}
+            />
+          </div>
           <button
             type="submit"
             disabled={isDisabled || isUploading || (!newMessage.trim() && !filePreview)}

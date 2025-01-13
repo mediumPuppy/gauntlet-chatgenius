@@ -43,7 +43,11 @@ const MentionDialog = memo(({ isOpen, onClose, onSelect, searchQuery, position }
     <div 
       ref={dialogRef}
       className="absolute z-50 bg-white rounded-lg shadow-xl w-64 max-h-48 overflow-y-auto"
-      style={{ top: position.top, left: position.left }}
+      style={{ 
+        top: position.top,
+        left: position.left,
+        transform: 'translateY(-100%)'
+      }}
     >
       {users.length > 0 ? (
         <ul className="py-1">
