@@ -288,15 +288,6 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
     return () => clearTimeout(searchTimeout);
   }, [newMessage, mentionState.startIndex, token, currentOrganization]);
 
-  const renderMessageContent = () => {
-    const parts = newMessage.split(/(@\w+)/g);
-    return parts.map((part, i) => 
-      part.match(/^@\w+/) ? 
-        <span key={i} className="bg-yellow-100 rounded px-1">{part}</span> : 
-        part
-    );
-  };
-
   return (
     <div className="h-auto min-h-[5rem] max-h-[12rem] border-t p-4">
       <form onSubmit={handleSendMessage} className="h-full">
@@ -351,9 +342,6 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
             </svg>
           </button>
           <div className="relative flex-1">
-            <div className="absolute inset-0 p-3 whitespace-pre-wrap break-words pointer-events-none">
-              {renderMessageContent()}
-            </div>
             <textarea
               value={newMessage}
               onChange={(e) => {
@@ -362,18 +350,34 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
                 e.target.style.height = 'auto';
                 e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
               }}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                } else {
+                  handleKeyDown(e);
+                }
+              }}
               placeholder={getPlaceholder()}
               disabled={isDisabled || isUploading}
               className="flex-1 bg-transparent p-3 resize-none focus:outline-none disabled:cursor-not-allowed w-full h-full leading-normal"
               style={{ 
-                color: 'transparent', 
-                caretColor: 'black',
+                color: 'inherit',
                 lineHeight: '1.5rem'
               }}
               rows={1}
               ref={textareaRef}
             />
+            <div 
+              className="absolute inset-0 p-3 whitespace-pre-wrap break-words pointer-events-none"
+              aria-hidden="true"
+            >
+              {newMessage.split(/(@\w+)/g).map((part, i) => 
+                part.match(/^@\w+/) ? 
+                  <span key={i} className="bg-yellow-100 rounded px-1 invisible">{part}</span> : 
+                  <span key={i} className="invisible">{part}</span>
+              )}
+            </div>
           </div>
           <button
             type="submit"

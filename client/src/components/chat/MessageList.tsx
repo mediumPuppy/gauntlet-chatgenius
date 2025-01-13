@@ -84,10 +84,10 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
       );
     }
 
-    // Handle mentions
+    // Handle mentions and preserve line breaks
     const parts = content.split(/(@\w+)/g);
     return (
-      <p className="text-gray-800 emoji">
+      <p className="text-gray-800 emoji whitespace-pre-wrap">
         {parts.map((part, i) => {
           if (part.startsWith('@')) {
             return <span key={i} className="bg-yellow-100 rounded px-1">{part}</span>;
