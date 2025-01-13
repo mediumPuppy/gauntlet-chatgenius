@@ -351,7 +351,7 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
             </svg>
           </button>
           <div className="relative flex-1">
-            <div className="absolute inset-0 p-3 pointer-events-none">
+            <div className="absolute inset-0 p-3 whitespace-pre-wrap break-words pointer-events-none">
               {renderMessageContent()}
             </div>
             <textarea
@@ -360,13 +360,17 @@ export function MessageInput({ parentId, placeholder, isThread = false }: Messag
                 setNewMessage(e.target.value);
                 handleTyping();
                 e.target.style.height = 'auto';
-                e.target.style.height = `${Math.min(e.target.scrollHeight, 10)}px`;
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
               }}
               onKeyDown={handleKeyDown}
               placeholder={getPlaceholder()}
               disabled={isDisabled || isUploading}
-              className="flex-1 bg-transparent p-3 resize-none focus:outline-none disabled:cursor-not-allowed w-full h-full"
-              style={{ color: 'transparent', caretColor: 'black' }}
+              className="flex-1 bg-transparent p-3 resize-none focus:outline-none disabled:cursor-not-allowed w-full h-full leading-normal"
+              style={{ 
+                color: 'transparent', 
+                caretColor: 'black',
+                lineHeight: '1.5rem'
+              }}
               rows={1}
               ref={textareaRef}
             />
