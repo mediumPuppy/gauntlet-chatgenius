@@ -476,4 +476,13 @@ export class WebSocketHandler {
       ws.send(JSON.stringify({ type: "error", error: "Failed to join DM" }));
     }
   }
+
+  // Public method for sending messages
+  public async sendMessage(messageData: ChatMessage) {
+    if (messageData.isDM) {
+      await this.broadcastToDM(messageData.channelId, messageData);
+    } else {
+      await this.broadcastToChannel(messageData.channelId, messageData);
+    }
+  }
 }

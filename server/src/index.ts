@@ -15,6 +15,7 @@ import { WebSocketHandler } from './websocket/handler';
 import { WebSocketClient } from './websocket/types';
 import searchRoutes from './routes/search';
 import path from 'path';
+import { createAIRouter } from './routes/ai';
 
 dotenv.config();
 
@@ -130,6 +131,8 @@ const wsHandler = new WebSocketHandler(wss);
 console.log('WebSocket handler created:', !!wsHandler);
 global.wss = wsHandler;
 console.log('Global WSS set:', !!global.wss);
+
+app.use('/api/ai', createAIRouter(wsHandler));
 
 wss.on('connection', (ws: WebSocketClient) => {
   console.log('WebSocket connection received');

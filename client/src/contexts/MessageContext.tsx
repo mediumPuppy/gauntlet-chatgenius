@@ -11,6 +11,7 @@ import { useAuth } from "./AuthContext";
 import { API_URL } from "../services/config";
 import { Message, TypingUser } from "../types/message";
 import { v4 as uuidv4 } from "uuid";
+import { triggerAIResponse } from "../services/ai";
 
 interface MessageContextType {
   messages: Message[];
@@ -94,19 +95,36 @@ export function MessageProvider({
         channelId,
         senderName: user.username,
         timestamp: Date.now(),
-        parentId, // Add parentId if provided
+        parentId,
       };
 
-      // Add to processed set to prevent duplication if we somehow receive it back
+      // Add to processed set to prevent duplication
       processedMessageIds.current.add(tempId);
 
       // Update local state immediately
       setMessages((prev) => [...prev, newMessage]);
 
-      // Send via WebSocket with parentId
+      // Send via WebSocket
       wsSendMessage(content, tempId, parentId);
+
+      // Check for mentions and trigger AI responses asynchronously
+      console.log("MessageContext: Checking for mentions in ai:", content);
+      const mentions = content.match(/@(\w+)/g);
+      if (mentions) {
+        mentions.forEach(mention => {
+          console.log("MessageContext: Found mentions ai:", mentions);
+
+          const username = mention.substring(1); // Remove @ symbol
+          // Pass the last 10 messages for context
+          console.log("MessageContext: Triggering AI for:", username);
+
+          const recentMessages = messages.slice(-10);
+          console.log("MessageContext: Recent messages ai:", recentMessages);
+          triggerAIResponse(username, newMessage, recentMessages, token!);
+        });
+      }
     },
-    [user, channelId, wsSendMessage]
+    [user, channelId, wsSendMessage, messages, token]
   );
 
   // Fetch message history when channel changes
