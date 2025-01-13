@@ -48,7 +48,7 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
   };
 
   const renderContent = (content: string) => {
-    // Check for image markdown syntax: ![alt](url)
+    // Handle existing image markdown
     const imageMatch = content.match(/!\[(.*?)\]\((.*?)\)/);
     if (imageMatch) {
       return (
@@ -64,7 +64,7 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
       );
     }
 
-    // Check for file link markdown syntax: [text](url)
+    // Handle existing file links
     const linkMatch = content.match(/\[(.*?)\]\((.*?)\)/);
     if (linkMatch) {
       return (
@@ -84,7 +84,18 @@ const Message = memo(({ message, onThreadClick, isHighlighted }: {
       );
     }
 
-    return <p className="text-gray-800 emoji">{content}</p>;
+    // Handle mentions and preserve line breaks
+    const parts = content.split(/(@\w+)/g);
+    return (
+      <p className="text-gray-800 emoji whitespace-pre-wrap">
+        {parts.map((part, i) => {
+          if (part.startsWith('@')) {
+            return <span key={i} className="bg-yellow-100 rounded px-1">{part}</span>;
+          }
+          return part;
+        })}
+      </p>
+    );
   };
 
   // Add function to determine picker position
