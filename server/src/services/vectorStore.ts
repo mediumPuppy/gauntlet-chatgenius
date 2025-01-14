@@ -4,8 +4,8 @@ import { PineconeStore } from "@langchain/pinecone";
 import pool from "../config/database";
 
 interface VectorStoreConfig {
-  type: "workspace" | "channel";
-  workspaceId?: string;
+  type: "organization" | "channel";
+  organizationId?: string;
   channelId?: string;
 }
 
@@ -15,8 +15,6 @@ export class VectorStoreService {
   private index: any; // We'll type this properly
 
   constructor() {
-    console.log("[VectorStore] Initializing Pinecone connection");
-
     if (!process.env.PINECONE_API_KEY) {
       console.error("[VectorStore] Missing PINECONE_API_KEY");
       throw new Error("Missing Pinecone API key");
@@ -28,28 +26,7 @@ export class VectorStoreService {
 
     // Create index if it doesn't exist
     const indexName = process.env.PINECONE_INDEX || "default";
-
-    try {
-      // Try to get the index first
-      this.index = this.pinecone.Index(indexName);
-      console.log(`[VectorStore] Connected to existing index: ${indexName}`);
-    } catch (error) {
-      console.log(`[VectorStore] Index ${indexName} not found, creating...`);
-      // Create the index if it doesn't exist
-      this.pinecone.createIndex({
-        name: indexName,
-        dimension: 1536,
-        metric: "cosine",
-        spec: {
-          serverless: {
-            cloud: "aws",
-            region: "us-east-1",
-          },
-        },
-      });
-      this.index = this.pinecone.Index(indexName);
-      console.log(`[VectorStore] Created and connected to index: ${indexName}`);
-    }
+    this.index = this.pinecone.index(indexName);
 
     this.embeddings = new OpenAIEmbeddings({
       openAIApiKey: process.env.OPENAI_API_KEY,
@@ -58,11 +35,11 @@ export class VectorStoreService {
 
   private async getStoreNamespace({
     type,
-    workspaceId,
+    organizationId,
     channelId,
   }: VectorStoreConfig): Promise<string> {
     const prefix = process.env.PINECONE_NAMESPACE_PREFIX || "";
-    return `${prefix}_${type}_${workspaceId || channelId}`;
+    return `${prefix}_${type}_${organizationId || channelId}`;
   }
 
   async createStore(config: VectorStoreConfig): Promise<void> {
@@ -72,12 +49,12 @@ export class VectorStoreService {
 
       // Create database entry
       const result = await client.query(
-        `INSERT INTO vector_stores (type, workspace_id, channel_id, name)
+        `INSERT INTO vector_stores (type, organization_id, channel_id, name)
          VALUES ($1, $2, $3, $4)
          RETURNING id`,
         [
           config.type,
-          config.workspaceId,
+          config.organizationId,
           config.channelId,
           await this.getStoreNamespace(config),
         ],
@@ -106,17 +83,10 @@ export class VectorStoreService {
     documents: string[],
   ): Promise<void> {
     const namespace = await this.getStoreNamespace(config);
-    console.log(
-      `[VectorStore] Adding ${documents.length} documents to namespace: ${namespace}`,
-    );
 
     try {
       // Verify index connection
       const indexStats = await this.index.describeIndexStats();
-      console.log(
-        `[VectorStore] Connected to index. Current stats:`,
-        indexStats,
-      );
 
       const vectorStore = await PineconeStore.fromExistingIndex(
         this.embeddings,
@@ -130,9 +100,6 @@ export class VectorStoreService {
       const batchSize = parseInt(process.env.VECTOR_STORE_BATCH_SIZE || "10");
       for (let i = 0; i < documents.length; i += batchSize) {
         const batch = documents.slice(i, i + batchSize);
-        console.log(
-          `[VectorStore] Processing batch ${i / batchSize + 1}, size: ${batch.length}`,
-        );
         await vectorStore.addDocuments(
           batch.map((content) => ({
             pageContent: content,
@@ -140,10 +107,6 @@ export class VectorStoreService {
           })),
         );
       }
-
-      console.log(
-        `[VectorStore] Successfully added all documents to namespace: ${namespace}`,
-      );
     } catch (error) {
       console.error(
         `[VectorStore] Failed to add documents to namespace: ${namespace}`,
@@ -162,9 +125,6 @@ export class VectorStoreService {
 
   async namespaceExists(config: VectorStoreConfig): Promise<boolean> {
     try {
-      console.log(
-        `[VectorStore] Checking if namespace exists jl: ${config.type} ${config.workspaceId || config.channelId}`,
-      );
       const namespace = await this.getStoreNamespace(config);
       const stats = await this.index.describeIndexStats({
         filter: { namespace: namespace },

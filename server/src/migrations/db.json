@@ -1,0 +1,382 @@
+{
+  "tables": {
+    "channel_members": {
+      "columns": {
+        "user_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        },
+        "channel_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        }
+      },
+      "foreign_keys": [
+        "channel_members.channel_id -> channels.id",
+        "channel_members.user_id -> users.id"
+      ]
+    },
+    "channels": {
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "default": "uuid_generate_v4()",
+          "nullable": false
+        },
+        "name": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "is_dm": {
+          "type": "boolean",
+          "default": "false",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "organization_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        }
+      },
+      "foreign_keys": ["channels.organization_id -> organizations.id"]
+    },
+    "direct_messages": {
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "default": "uuid_generate_v4()",
+          "nullable": false
+        },
+        "user1_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        },
+        "user2_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        }
+      },
+      "foreign_keys": [
+        "direct_messages.user1_id -> users.id",
+        "direct_messages.user2_id -> users.id"
+      ]
+    },
+    "message_reactions": {
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "default": "uuid_generate_v4()",
+          "nullable": false
+        },
+        "emoji": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "user_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "message_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        }
+      },
+      "foreign_keys": [
+        "message_reactions.message_id -> messages.id",
+        "message_reactions.user_id -> users.id"
+      ]
+    },
+    "messages": {
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "default": "uuid_generate_v4()",
+          "nullable": false
+        },
+        "dm_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        },
+        "content": {
+          "type": "text",
+          "default": null,
+          "nullable": false
+        },
+        "user_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        },
+        "parent_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        },
+        "channel_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "has_replies": {
+          "type": "boolean",
+          "default": "false",
+          "nullable": true
+        },
+        "reply_count": {
+          "type": "integer",
+          "default": "0",
+          "nullable": true
+        }
+      },
+      "foreign_keys": [
+        "messages.channel_id -> channels.id",
+        "messages.dm_id -> direct_messages.id",
+        "messages.parent_id -> messages.id",
+        "messages.user_id -> users.id"
+      ]
+    },
+    "migrations": {
+      "columns": {
+        "id": {
+          "type": "integer",
+          "default": "nextval('migrations_id_seq'::regclass)",
+          "nullable": false
+        },
+        "name": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "executed_at": {
+          "type": "timestamp without time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        }
+      },
+      "foreign_keys": []
+    },
+    "organization_invites": {
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "default": "uuid_generate_v4()",
+          "nullable": false
+        },
+        "code": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "email": {
+          "type": "character varying",
+          "default": null,
+          "nullable": true
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "expires_at": {
+          "type": "timestamp with time zone",
+          "default": null,
+          "nullable": false
+        },
+        "invited_by": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        },
+        "accepted_at": {
+          "type": "timestamp with time zone",
+          "default": null,
+          "nullable": true
+        },
+        "organization_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        }
+      },
+      "foreign_keys": [
+        "organization_invites.invited_by -> users.id",
+        "organization_invites.organization_id -> organizations.id"
+      ]
+    },
+    "organization_members": {
+      "columns": {
+        "role": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "user_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        },
+        "joined_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "organization_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        }
+      },
+      "foreign_keys": [
+        "organization_members.organization_id -> organizations.id",
+        "organization_members.user_id -> users.id"
+      ]
+    },
+    "organizations": {
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "default": "uuid_generate_v4()",
+          "nullable": false
+        },
+        "name": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "created_by": {
+          "type": "uuid",
+          "default": null,
+          "nullable": false
+        },
+        "updated_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        }
+      },
+      "foreign_keys": ["organizations.created_by -> users.id"]
+    },
+    "users": {
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "default": "uuid_generate_v4()",
+          "nullable": false
+        },
+        "email": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "username": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "is_online": {
+          "type": "boolean",
+          "default": "false",
+          "nullable": true
+        },
+        "last_seen": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "ai_enabled": {
+          "type": "boolean",
+          "default": "false",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "password_hash": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        }
+      },
+      "foreign_keys": []
+    },
+    "vector_stores": {
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "default": "uuid_generate_v4()",
+          "nullable": false
+        },
+        "name": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "type": {
+          "type": "character varying",
+          "default": null,
+          "nullable": false
+        },
+        "channel_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "last_updated_at": {
+          "type": "timestamp with time zone",
+          "default": "CURRENT_TIMESTAMP",
+          "nullable": true
+        },
+        "organization_id": {
+          "type": "uuid",
+          "default": null,
+          "nullable": true
+        }
+      },
+      "foreign_keys": [
+        "vector_stores.channel_id -> channels.id",
+        "vector_stores.organization_id -> organizations.id"
+      ]
+    }
+  }
+}

@@ -29,7 +29,6 @@ async function runMigrations() {
     // Run pending migrations
     for (const file of files) {
       if (!executedFiles.has(file)) {
-        console.log(`Running migration: ${file}`);
         const sql = fs.readFileSync(path.join(migrationsDir, file), "utf-8");
 
         const client = await pool.connect();
@@ -40,7 +39,6 @@ async function runMigrations() {
             file,
           ]);
           await client.query("COMMIT");
-          console.log(`Migration ${file} completed successfully`);
         } catch (error) {
           await client.query("ROLLBACK");
           console.error(`Error running migration ${file}:`, error);

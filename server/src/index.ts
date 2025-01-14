@@ -122,13 +122,6 @@ const wss = new WebSocketServer({
   },
 });
 
-// Add this to check WebSocket server state
-console.log("WebSocket server state:", {
-  clients: wss.clients.size,
-  address: server.address(),
-  listening: server.listening,
-});
-
 const wsHandler = new WebSocketHandler(wss);
 
 global.wss = wsHandler;
@@ -141,10 +134,6 @@ wss.on("connection", (ws: WebSocketClient) => {
 
 wss.on("error", (error) => {
   console.error("WebSocket server error:", error);
-});
-
-wss.on("listening", () => {
-  console.log("WebSocket Server is listening on port", port);
 });
 
 // Initialize vector store sync job

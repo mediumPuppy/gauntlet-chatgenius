@@ -71,11 +71,9 @@ export function useWebSocket(channelId: string, isDM = false) {
 
     isConnecting.current = true;
     setConnectionState("CONNECTING");
-    console.log("Connecting to WebSocket with URL:", WS_URL);
     try {
       // No longer referencing "process.env"
       ws.current = new WebSocket(WS_URL);
-      console.log("WebSocket created");
       ws.current.onopen = () => {
         setConnectionState("CONNECTED");
         isConnecting.current = false;
@@ -102,8 +100,6 @@ export function useWebSocket(channelId: string, isDM = false) {
       ws.current.onclose = (event) => {
         isConnecting.current = false;
         setConnectionState("DISCONNECTED");
-        console.log("WebSocket closed");
-        ``;
         // Attempt to reconnect if not a normal close
         if (event.code !== 1000) {
           if (reconnectAttempts.current < maxReconnectAttempts) {
@@ -159,7 +155,6 @@ export function useWebSocket(channelId: string, isDM = false) {
         );
         return;
       }
-      console.log("Sending message with parentId:", parentId);
       const payload: WebSocketMessage = {
         type: "message",
         id,
@@ -169,7 +164,6 @@ export function useWebSocket(channelId: string, isDM = false) {
         parentId,
         timestamp: Date.now(),
       };
-      console.log("WebSocket payload:", payload);
       ws.current.send(JSON.stringify(payload));
     },
     [connectionState, channelId, isDM],

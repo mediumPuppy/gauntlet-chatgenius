@@ -68,12 +68,12 @@ export const createMessage = async (
         return;
       }
 
-      // Get workspace ID for the channel
-      const workspaceResult = await client.query(
+      // Get organization ID for the channel
+      const orgResult = await client.query(
         "SELECT organization_id FROM channels WHERE id = $1",
         [effectiveChannelId],
       );
-      const workspaceId = workspaceResult.rows[0].organization_id;
+      const organizationId = orgResult.rows[0].organization_id;
 
       // Update vector stores asynchronously
       Promise.all([
@@ -81,10 +81,11 @@ export const createMessage = async (
         vectorStoreService.addDocuments({ type: "channel", channelId }, [
           content,
         ]),
-        // Update workspace-level store
-        vectorStoreService.addDocuments({ type: "workspace", workspaceId }, [
-          content,
-        ]),
+        // Update organization-level store
+        vectorStoreService.addDocuments(
+          { type: "organization", organizationId },
+          [content],
+        ),
       ]).catch((error) => {
         console.error("Error updating vector stores:", error);
       });
@@ -164,17 +165,17 @@ export const createMessage = async (
           [content],
         );
 
-        // Get workspace ID and add to workspace's vector store
-        const workspaceResult = await client.query(
+        // Get organization ID and add to organization's vector store
+        const orgResult = await client.query(
           "SELECT organization_id FROM channels WHERE id = $1",
           [effectiveChannelId],
         );
 
-        if (workspaceResult.rows.length > 0) {
+        if (orgResult.rows.length > 0) {
           await vectorStoreService.addDocuments(
             {
-              type: "workspace",
-              workspaceId: workspaceResult.rows[0].organization_id,
+              type: "organization",
+              organizationId: orgResult.rows[0].organization_id,
             },
             [content],
           );

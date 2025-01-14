@@ -1,14 +1,5 @@
 // Helper function with detailed logging
 export const getEnvVar = (key: string, defaultValue: string) => {
-  console.log("🔍 LOOK HERE - Environment Check:", {
-    key,
-    importMetaValue: import.meta.env[key],
-    // @ts-ignore
-    processValue:
-      typeof process !== "undefined" ? process.env[key] : "process not defined",
-    defaultValue,
-  });
-
   if (import.meta.env[key]) {
     return import.meta.env[key];
   }

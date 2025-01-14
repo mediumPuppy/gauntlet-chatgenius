@@ -18,7 +18,7 @@ export async function handleBotQuery(req: AuthRequest, res: Response) {
   }
 
   try {
-    // Get channel and workspace info
+    // Get channel and organization info
     const channelResult = await pool.query(
       "SELECT organization_id FROM channels WHERE id = $1",
       [channelId],
@@ -30,27 +30,30 @@ export async function handleBotQuery(req: AuthRequest, res: Response) {
       return;
     }
 
-    const workspaceId = channelResult.rows[0].organization_id;
-    console.log(`[AI Query] Processing in workspace ${workspaceId}`);
+    const organizationId = channelResult.rows[0].organization_id;
+    console.log(`[AI Query] Processing in organization ${organizationId}`);
 
-    // Query both channel and workspace vector stores
-    const [channelStore, workspaceStore] = await Promise.all([
+    // Query both channel and organization vector stores
+    const [channelStore, organizationStore] = await Promise.all([
       vectorStoreService.getVectorStore({ type: "channel", channelId }),
-      vectorStoreService.getVectorStore({ type: "workspace", workspaceId }),
+      vectorStoreService.getVectorStore({
+        type: "organization",
+        organizationId,
+      }),
     ]);
 
     // Search both stores
-    const [channelResults, workspaceResults] = await Promise.all([
+    const [channelResults, organizationResults] = await Promise.all([
       channelStore.similaritySearch(content, 3),
-      workspaceStore.similaritySearch(content, 3),
+      organizationStore.similaritySearch(content, 3),
     ]);
 
     console.log(
-      `[AI Query] Found ${channelResults.length} channel results and ${workspaceResults.length} workspace results`,
+      `[AI Query] Found ${channelResults.length} channel results and ${organizationResults.length} organization results`,
     );
 
     // Combine and deduplicate results
-    const allResults = [...channelResults, ...workspaceResults].filter(
+    const allResults = [...channelResults, ...organizationResults].filter(
       (value, index, self) =>
         index === self.findIndex((t) => t.pageContent === value.pageContent),
     );

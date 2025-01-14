@@ -34,14 +34,11 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({
   const { data: organizations = [], isLoading } = useQuery({
     queryKey: ["organizations", user?.id],
     queryFn: async () => {
-      console.log("Fetching organizations with token:", !!token);
       if (!user || !token) return [];
       const response = await fetch("/api/organizations/user", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log("Organizations response status:", response.status);
       const data = await response.json();
-      console.log("Organizations data:", data);
       return data;
     },
     enabled: !!user && !!token,

@@ -3,7 +3,7 @@ import { vectorStoreService } from "../services/vectorStore";
 import { sleep } from "../utils/async";
 
 interface SyncJob {
-  type: "workspace" | "channel";
+  type: "organization" | "channel";
   id: string;
   lastSync?: Date;
 }
@@ -39,7 +39,7 @@ export class VectorStoreSyncJob {
   }
 
   private async runSync(): Promise<void> {
-    // Get all workspaces and channels that need syncing
+    // Get all organizations and channels that need syncing
     const jobs = await this.getJobsToSync();
 
     console.log(`Starting sync job, found ${jobs.length} jobs to process`);
@@ -59,13 +59,13 @@ export class VectorStoreSyncJob {
   private async getJobsToSync(): Promise<SyncJob[]> {
     const result = await this.pool.query(`
       SELECT 
-        'workspace' as type,
+        'organization' as type,
         o.id,
         vs.last_updated_at as last_sync
       FROM organizations o
       LEFT JOIN vector_stores vs ON 
-        vs.workspace_id = o.id AND 
-        vs.type = 'workspace'
+        vs.organization_id = o.id AND 
+        vs.type = 'organization'
       WHERE vs.last_updated_at IS NULL OR 
             vs.last_updated_at < NOW() - INTERVAL '1 day'
       UNION ALL
@@ -91,8 +91,8 @@ export class VectorStoreSyncJob {
 
       const config = {
         type: job.type,
-        ...(job.type === "workspace"
-          ? { workspaceId: job.id }
+        ...(job.type === "organization"
+          ? { organizationId: job.id }
           : { channelId: job.id }),
       };
 
@@ -115,7 +115,7 @@ export class VectorStoreSyncJob {
       // Only get messages if we created a new namespace
       const messages = await client.query(
         `SELECT content FROM messages 
-         WHERE ${job.type === "workspace" ? "channel_id IN (SELECT id FROM channels WHERE organization_id = $1)" : "channel_id = $1"}
+         WHERE ${job.type === "organization" ? "channel_id IN (SELECT id FROM channels WHERE organization_id = $1)" : "channel_id = $1"}
          AND created_at > $2
          ORDER BY created_at ASC`,
         [job.id, job.lastSync || new Date(0)],

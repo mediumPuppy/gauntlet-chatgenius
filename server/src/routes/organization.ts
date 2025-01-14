@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import { authenticateToken } from "../middleware/auth";
 import pool from "../config/db";
 import { v4 as uuidv4 } from "uuid";
+import { vectorStoreService } from "../services/vectorStore";
 
 const router = express.Router();
 
@@ -38,6 +39,7 @@ router.post(
   "/",
   authenticateToken,
   async (req: Request, res: Response): Promise<void> => {
+    const client = await pool.connect();
     try {
       const { name } = req.body;
       const userId = req.user?.id;
@@ -47,37 +49,50 @@ router.post(
         return;
       }
 
-      // Start a transaction
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN");
+      await client.query("BEGIN");
 
-        // Create organization
-        const orgResult = await client.query(
-          `INSERT INTO organizations (name, created_by, created_at)
+      // Create organization
+      const orgResult = await client.query(
+        `INSERT INTO organizations (name, created_by, created_at)
          VALUES ($1, $2, NOW())
          RETURNING *`,
-          [name, userId],
-        );
+        [name, userId],
+      );
 
-        // Add creator as member with 'owner' role
-        await client.query(
-          `INSERT INTO organization_members (organization_id, user_id, role)
+      // Add creator as member with 'owner' role
+      await client.query(
+        `INSERT INTO organization_members (organization_id, user_id, role)
          VALUES ($1, $2, 'owner')`,
-          [orgResult.rows[0].id, userId],
-        );
+        [orgResult.rows[0].id, userId],
+      );
 
-        await client.query("COMMIT");
-        res.status(201).json(orgResult.rows[0]);
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
+      // Initialize vector store with consistent config format
+      const config = {
+        type: "organization" as const,
+        organizationId: orgResult.rows[0].id,
+      };
+
+      try {
+        const exists = await vectorStoreService.namespaceExists(config);
+        if (!exists) {
+          await vectorStoreService.createStore(config);
+        }
+      } catch (vectorError) {
+        console.error(
+          "Error initializing organization vector store:",
+          vectorError,
+        );
+        // Don't fail organization creation if vector store initialization fails
       }
+
+      await client.query("COMMIT");
+      res.status(201).json(orgResult.rows[0]);
     } catch (error) {
+      await client.query("ROLLBACK");
       console.error("Error creating organization:", error);
       res.status(500).json({ error: "Failed to create organization" });
+    } finally {
+      client.release();
     }
   },
 );
@@ -191,20 +206,11 @@ router.post(
       const userId = req.user?.id;
       const { email } = req.body; // Optional email
 
-      console.log(
-        "Generating invite code for org:",
-        organizationId,
-        "by user:",
-        userId,
-      );
-
       // Check if user has permission (is owner or admin)
       const roleCheck = await pool.query(
         "SELECT role FROM organization_members WHERE organization_id = $1 AND user_id = $2",
         [organizationId, userId],
       );
-
-      console.log("Role check result:", roleCheck.rows);
 
       if (
         roleCheck.rows.length === 0 ||
@@ -219,14 +225,6 @@ router.post(
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-      console.log("Attempting to insert invite code:", {
-        organizationId,
-        userId,
-        code,
-        email,
-        expiresAt,
-      });
-
       try {
         const result = await pool.query(
           `INSERT INTO organization_invites (organization_id, invited_by, code, email, expires_at)
@@ -235,7 +233,6 @@ router.post(
           [organizationId, userId, code, email || null, expiresAt],
         );
 
-        console.log("Insert result:", result.rows[0]);
         res.status(201).json(result.rows[0]);
       } catch (dbError) {
         console.error("Database error:", dbError);
@@ -263,20 +260,11 @@ router.get(
       const { organizationId } = req.params;
       const userId = req.user?.id;
 
-      console.log(
-        "Fetching invite codes for org:",
-        organizationId,
-        "by user:",
-        userId,
-      );
-
       // Check if user has permission (is owner or admin)
       const roleCheck = await pool.query(
         "SELECT role FROM organization_members WHERE organization_id = $1 AND user_id = $2",
         [organizationId, userId],
       );
-
-      console.log("Role check result:", roleCheck.rows);
 
       if (
         roleCheck.rows.length === 0 ||
@@ -296,7 +284,6 @@ router.get(
           [organizationId],
         );
 
-        console.log("Query result:", result.rows);
         res.json(result.rows);
       } catch (dbError) {
         console.error("Database error:", dbError);

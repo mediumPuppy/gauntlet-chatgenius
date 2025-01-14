@@ -33,8 +33,6 @@ const Message = memo(
 
     const handleEmojiSelect = async (emoji: any) => {
       try {
-        console.log("Selected emoji full object:", emoji);
-        console.log("Selected emoji native:", emoji.native);
         await addReaction(token!, message.id, emoji.native);
         setShowEmojiPicker(false);
       } catch (error) {
@@ -44,7 +42,6 @@ const Message = memo(
 
     const handleReactionClick = async (emoji: string) => {
       try {
-        console.log("Clicking reaction:", emoji);
         await addReaction(token!, message.id, emoji);
       } catch (error) {
         console.error("Failed to toggle reaction:", error);

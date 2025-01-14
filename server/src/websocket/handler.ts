@@ -339,7 +339,6 @@ export class WebSocketHandler {
       );
 
       if (message.rows.length === 0) {
-        console.log("Message not found:", messageId);
         ws?.send(JSON.stringify({ type: "error", error: "Message not found" }));
         return;
       }

@@ -108,18 +108,12 @@ export function MessageProvider({
       wsSendMessage(content, tempId, parentId);
 
       // Check for mentions and trigger AI responses asynchronously
-      console.log("MessageContext: Checking for mentions in ai:", content);
       const mentions = content.match(/@(\w+)/g);
       if (mentions) {
         mentions.forEach((mention) => {
-          console.log("MessageContext: Found mentions ai:", mentions);
-
           const username = mention.substring(1); // Remove @ symbol
           // Pass the last 10 messages for context
-          console.log("MessageContext: Triggering AI for:", username);
-
           const recentMessages = messages.slice(-10);
-          console.log("MessageContext: Recent messages ai:", recentMessages);
           triggerAIResponse(username, newMessage, recentMessages, token!);
         });
       }
@@ -204,7 +198,6 @@ export function MessageProvider({
 
     const handleMessage = (event: CustomEvent) => {
       const data = event.detail;
-      console.log("Received WebSocket message:", data);
 
       // Only process messages for current channel/DM
       if (data.channelId !== channelId) return;
@@ -216,7 +209,6 @@ export function MessageProvider({
 
           // Skip if we've already processed this message
           if (processedMessageIds.current.has(messageId)) {
-            console.log("Skipping duplicate message:", messageId);
             return;
           }
 
@@ -225,12 +217,10 @@ export function MessageProvider({
           const lastMessageTime =
             lastMessageTimestampRef.current[data.senderId] || 0;
           if (now - lastMessageTime < 100) {
-            console.log("Rate limiting message from user:", data.senderId);
             return;
           }
           lastMessageTimestampRef.current[data.senderId] = now;
 
-          console.log("Processing new message:", data);
           const newMessage: Message = {
             id: messageId,
             content: data.content,
@@ -311,14 +301,7 @@ export function MessageProvider({
         }
 
         case "reaction": {
-          console.log("Handling reaction event:", data);
           const { messageId, userId, emoji, action } = data;
-          console.log("Handling reaction event:", {
-            messageId,
-            userId,
-            emoji,
-            action,
-          });
 
           setMessages((prev) => {
             return prev.map((msg) => {
@@ -330,10 +313,6 @@ export function MessageProvider({
               ) {
                 // Create a new reactions object if it doesn't exist
                 const currentReactions = { ...(msg.reactions || {}) };
-                console.log(
-                  "Current reactions before update:",
-                  currentReactions,
-                );
 
                 if (action === "added") {
                   // Create new array if emoji doesn't exist
@@ -351,7 +330,6 @@ export function MessageProvider({
                   }
                 }
 
-                console.log("Updated reactions:", currentReactions);
                 return { ...msg, reactions: currentReactions };
               }
               return msg;

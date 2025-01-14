@@ -68,8 +68,6 @@ async function generateAndSendResponse(
   recentMessages: any[],
 ) {
   try {
-    console.log("Generating AI response for user:", username);
-
     // Initialize Pinecone
     const pinecone = new Pinecone({
       apiKey: process.env.PINECONE_API_KEY!,
@@ -166,8 +164,6 @@ async function generateAndSendResponse(
       isDM: !!triggeringMessage.dmId,
       parentId: triggeringMessage.parentId,
     });
-
-    console.log("AI response sent and saved successfully");
   } catch (error) {
     console.error("Error generating AI response:", error);
   }

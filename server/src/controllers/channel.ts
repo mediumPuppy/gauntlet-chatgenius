@@ -1,8 +1,11 @@
 import { Request, Response, RequestHandler } from "express";
 import { channelQueries } from "../models/channel";
+import { vectorStoreService } from "../services/vectorStore";
+import pool from "../config/database";
 
 export const channelController = {
-  createChannel: (async (req: Request, res: Response): Promise<void> => {
+  createChannel: async (req: Request, res: Response): Promise<void> => {
+    const client = await pool.connect();
     try {
       const { name, organization_id } = req.body;
       const userId = req.user?.id;
@@ -14,15 +17,37 @@ export const channelController = {
         return;
       }
 
+      await client.query("BEGIN");
+
       const channel = await channelQueries.createChannel(name, organization_id);
       await channelQueries.addMember(channel.id, userId);
 
+      // Initialize vector store with consistent config format
+      const config = {
+        type: "channel" as const,
+        channelId: channel.id,
+      };
+
+      try {
+        const exists = await vectorStoreService.namespaceExists(config);
+        if (!exists) {
+          await vectorStoreService.createStore(config);
+        }
+      } catch (vectorError) {
+        console.error("Error initializing channel vector store:", vectorError);
+        // Don't fail channel creation if vector store initialization fails
+      }
+
+      await client.query("COMMIT");
       res.status(201).json(channel);
     } catch (error) {
+      await client.query("ROLLBACK");
       console.error("Error creating channel:", error);
       res.status(500).json({ error: "Failed to create channel" });
+    } finally {
+      client.release();
     }
-  }) as RequestHandler,
+  },
 
   getChannels: (async (req: Request, res: Response): Promise<void> => {
     try {

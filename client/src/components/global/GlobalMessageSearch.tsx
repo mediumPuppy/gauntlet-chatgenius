@@ -56,10 +56,6 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
   };
 
   const navigateToMessage = (result: SearchResult) => {
-    // Debug logs
-    console.log("Search Result:", result);
-    console.log("Parent ID:", result.parentId);
-    console.log("Message ID:", result.id);
 
     // If it's a reply, use the parentId for highlighting
     const highlightId = result.parentId || result.id;
