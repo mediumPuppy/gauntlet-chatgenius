@@ -1,9 +1,9 @@
-import { Pool } from 'pg';
-import { vectorStoreService } from '../services/vectorStore';
-import { sleep } from '../utils/async';
+import { Pool } from "pg";
+import { vectorStoreService } from "../services/vectorStore";
+import { sleep } from "../utils/async";
 
 interface SyncJob {
-  type: 'workspace' | 'channel';
+  type: "workspace" | "channel";
   id: string;
   lastSync?: Date;
 }
@@ -16,19 +16,19 @@ export class VectorStoreSyncJob {
 
   constructor(pool: Pool) {
     this.pool = pool;
-    this.batchSize = parseInt(process.env.VECTOR_STORE_BATCH_SIZE || '100');
+    this.batchSize = parseInt(process.env.VECTOR_STORE_BATCH_SIZE || "100");
   }
 
   async start(): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
-    
+
     while (this.isRunning) {
       try {
         await this.runSync();
         await sleep(this.syncInterval);
       } catch (error) {
-        console.error('Error in vector store sync job:', error);
+        console.error("Error in vector store sync job:", error);
         await sleep(5000); // Wait 5 seconds before retrying on error
       }
     }
@@ -48,7 +48,10 @@ export class VectorStoreSyncJob {
       try {
         await this.syncVectorStore(job);
       } catch (error) {
-        console.error(`Error syncing vector store for ${job.type} ${job.id}:`, error);
+        console.error(
+          `Error syncing vector store for ${job.type} ${job.id}:`,
+          error,
+        );
       }
     }
   }
@@ -84,48 +87,56 @@ export class VectorStoreSyncJob {
   private async syncVectorStore(job: SyncJob): Promise<void> {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
-      const config = { 
-        type: job.type, 
-        ...(job.type === 'workspace' ? { workspaceId: job.id } : { channelId: job.id })
+      const config = {
+        type: job.type,
+        ...(job.type === "workspace"
+          ? { workspaceId: job.id }
+          : { channelId: job.id }),
       };
 
       // Check if namespace exists before creating
       const exists = await vectorStoreService.namespaceExists(config);
       if (exists) {
-        console.log(`Namespace already exists for ${job.type} ${job.id}, skipping creation`);
-        await client.query('COMMIT');
+        console.log(
+          `Namespace already exists for ${job.type} ${job.id}, skipping creation`,
+        );
+        await client.query("COMMIT");
         return;
       }
 
       // Create new vector store entry
       await vectorStoreService.createStore(config);
-      console.log(`Created new namespace for ${job.type} ${job.id}, proceeding with initial sync`);
+      console.log(
+        `Created new namespace for ${job.type} ${job.id}, proceeding with initial sync`,
+      );
 
       // Only get messages if we created a new namespace
       const messages = await client.query(
         `SELECT content FROM messages 
-         WHERE ${job.type === 'workspace' ? 'channel_id IN (SELECT id FROM channels WHERE organization_id = $1)' : 'channel_id = $1'}
+         WHERE ${job.type === "workspace" ? "channel_id IN (SELECT id FROM channels WHERE organization_id = $1)" : "channel_id = $1"}
          AND created_at > $2
          ORDER BY created_at ASC`,
-        [job.id, job.lastSync || new Date(0)]
+        [job.id, job.lastSync || new Date(0)],
       );
 
       if (messages.rows.length > 0) {
-        console.log(`Syncing ${messages.rows.length} messages to new namespace ${job.type} ${job.id}`);
+        console.log(
+          `Syncing ${messages.rows.length} messages to new namespace ${job.type} ${job.id}`,
+        );
         await vectorStoreService.addDocuments(
           config,
-          messages.rows.map(row => row.content)
+          messages.rows.map((row) => row.content),
         );
       }
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
   }
-} 
+}

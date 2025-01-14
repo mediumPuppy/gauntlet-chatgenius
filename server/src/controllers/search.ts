@@ -1,20 +1,20 @@
-import { Request, Response } from 'express';
-import pool from '../config/database';
-import { AuthRequest } from '../middleware/auth';
+import { Request, Response } from "express";
+import pool from "../config/database";
+import { AuthRequest } from "../middleware/auth";
 
 // Example controller function for searching messages across channels and DMs
 export async function searchMessages(req: AuthRequest, res: Response) {
   try {
     // Ensure user is authenticated
     if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
     const userId = req.user.id;
     const searchTerm = req.query.q as string;
 
     if (!searchTerm) {
-      return res.status(400).json({ error: 'Search term (q) is required' });
+      return res.status(400).json({ error: "Search term (q) is required" });
     }
 
     // Perform a search across channel messages (where user is a member)
@@ -81,7 +81,7 @@ export async function searchMessages(req: AuthRequest, res: Response) {
     // You can transform rows here if needed (e.g., rename fields to match your front end)
     res.json(result.rows);
   } catch (error) {
-    console.error('Error searching messages:', error);
-    res.status(500).json({ error: 'Failed to search messages' });
+    console.error("Error searching messages:", error);
+    res.status(500).json({ error: "Failed to search messages" });
   }
-} 
+}

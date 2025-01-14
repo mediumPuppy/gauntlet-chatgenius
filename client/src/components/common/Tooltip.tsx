@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState } from "react";
 
 interface TooltipProps {
   content: string;
@@ -23,4 +23,4 @@ export function Tooltip({ content, children }: TooltipProps) {
       )}
     </div>
   );
-} 
+}

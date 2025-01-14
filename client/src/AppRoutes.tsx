@@ -1,17 +1,16 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
-import { useOrganization } from './contexts/OrganizationContext';
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import ChatPage from './pages/ChatPage';
-import OrganizationOnboardingPage from './pages/OrganizationOnboardingPage';
-import OrganizationSettingsPage from './pages/OrganizationSettingsPage';
-import { ChannelProvider } from './contexts/ChannelContext';
-import ThreadPage from './pages/ThreadPage';
-
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./contexts/AuthContext";
+import { useOrganization } from "./contexts/OrganizationContext";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
+import ChatPage from "./pages/ChatPage";
+import OrganizationOnboardingPage from "./pages/OrganizationOnboardingPage";
+import OrganizationSettingsPage from "./pages/OrganizationSettingsPage";
+import { ChannelProvider } from "./contexts/ChannelContext";
+import ThreadPage from "./pages/ThreadPage";
 
 export const AppRoutes: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -27,29 +26,44 @@ export const AppRoutes: React.FC = () => {
   }
 
   // If user is logged in but has no organization, redirect to onboarding
-  const authenticatedRedirect = user 
-    ? (currentOrganization ? '/chat' : '/organization-onboarding')
-    : '/login';
+  const authenticatedRedirect = user
+    ? currentOrganization
+      ? "/chat"
+      : "/organization-onboarding"
+    : "/login";
 
   return (
     <Routes>
-      <Route 
-        path="/" 
-        element={<LandingPage />} 
+      <Route path="/" element={<LandingPage />} />
+      <Route
+        path="/login"
+        element={
+          user && !authLoading ? (
+            <Navigate to={authenticatedRedirect} replace />
+          ) : (
+            <LoginPage />
+          )
+        }
       />
-      <Route 
-        path="/login" 
-        element={user && !authLoading ? <Navigate to={authenticatedRedirect} replace /> : <LoginPage />} 
-      />
-      <Route 
-        path="/signup" 
-        element={user && !authLoading ? <Navigate to={authenticatedRedirect} replace /> : <SignupPage />} 
+      <Route
+        path="/signup"
+        element={
+          user && !authLoading ? (
+            <Navigate to={authenticatedRedirect} replace />
+          ) : (
+            <SignupPage />
+          )
+        }
       />
       <Route
         path="/organization-onboarding"
         element={
           <ProtectedRoute>
-            {currentOrganization ? <Navigate to="/chat" replace /> : <OrganizationOnboardingPage />}
+            {currentOrganization ? (
+              <Navigate to="/chat" replace />
+            ) : (
+              <OrganizationOnboardingPage />
+            )}
           </ProtectedRoute>
         }
       />
@@ -67,7 +81,7 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      
+
       <Route
         path="/chat/*"
         element={
@@ -88,4 +102,4 @@ export const AppRoutes: React.FC = () => {
       />
     </Routes>
   );
-}; 
+};

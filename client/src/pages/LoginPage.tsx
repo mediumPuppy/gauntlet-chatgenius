@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { login } from '../services/auth';
-import { useAuth } from '../contexts/AuthContext';
-import { Navigation } from '../components/common/Navigation';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { login } from "../services/auth";
+import { useAuth } from "../contexts/AuthContext";
+import { Navigation } from "../components/common/Navigation";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login: authLogin, isLoading: authLoading } = useAuth();
@@ -23,15 +23,15 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     try {
       const response = await login({ email, password });
       authLogin(response.token, response.user);
-      navigate('/chat');
+      navigate("/chat");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login');
+      setError(err instanceof Error ? err.message : "Failed to login");
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +52,10 @@ export default function LoginPage() {
           )}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-primary-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-primary-700"
+              >
                 Email
               </label>
               <input
@@ -65,7 +68,10 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-primary-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-primary-700"
+              >
                 Password
               </label>
               <input
@@ -82,12 +88,15 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors disabled:bg-primary-300"
             >
-              {isLoading ? 'Logging in...' : 'Login'}
+              {isLoading ? "Logging in..." : "Login"}
             </button>
           </form>
           <p className="mt-4 text-center text-sm text-primary-600">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-primary-600 hover:text-primary-700 font-medium">
+            Don't have an account?{" "}
+            <Link
+              to="/signup"
+              className="text-primary-600 hover:text-primary-700 font-medium"
+            >
               Sign up
             </Link>
           </p>
@@ -95,4 +104,4 @@ export default function LoginPage() {
       </div>
     </div>
   );
-} 
+}

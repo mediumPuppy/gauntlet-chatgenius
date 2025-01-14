@@ -1,25 +1,25 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { signup } from '../services/auth';
-import { useAuth } from '../contexts/AuthContext';
-import { Navigation } from '../components/common/Navigation';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { signup } from "../services/auth";
+import { useAuth } from "../contexts/AuthContext";
+import { Navigation } from "../components/common/Navigation";
 
 export default function SignupPage() {
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
 
@@ -28,9 +28,9 @@ export default function SignupPage() {
     try {
       const response = await signup({ email, password, username });
       login(response.token, response.user);
-      navigate('/chat');
+      navigate("/chat");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sign up');
+      setError(err instanceof Error ? err.message : "Failed to sign up");
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +51,10 @@ export default function SignupPage() {
           )}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-primary-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-primary-700"
+              >
                 Email
               </label>
               <input
@@ -64,7 +67,10 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-primary-700">
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-primary-700"
+              >
                 Username
               </label>
               <input
@@ -77,7 +83,10 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-primary-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-primary-700"
+              >
                 Password
               </label>
               <input
@@ -90,7 +99,10 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-primary-700">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-primary-700"
+              >
                 Confirm Password
               </label>
               <input
@@ -107,12 +119,15 @@ export default function SignupPage() {
               disabled={isLoading}
               className="w-full bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors disabled:bg-primary-300"
             >
-              {isLoading ? 'Creating account...' : 'Sign up'}
+              {isLoading ? "Creating account..." : "Sign up"}
             </button>
           </form>
           <p className="mt-4 text-center text-sm text-primary-600">
-            Already have an account?{' '}
-            <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="text-primary-600 hover:text-primary-700 font-medium"
+            >
               Log in
             </Link>
           </p>
@@ -120,4 +135,4 @@ export default function SignupPage() {
       </div>
     </div>
   );
-} 
+}

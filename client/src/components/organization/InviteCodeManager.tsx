@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useOrganization } from '../../contexts/OrganizationContext';
+import { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useOrganization } from "../../contexts/OrganizationContext";
 
-import { API_URL } from '../../services/config';
-
+import { API_URL } from "../../services/config";
 
 interface InviteCode {
   code: string;
@@ -24,22 +23,27 @@ export function InviteCodeManager() {
     if (!token || !currentOrganization) return;
 
     try {
-      const response = await fetch(`${API_URL}/organizations/${currentOrganization.id}/invite-codes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await fetch(
+        `${API_URL}/organizations/${currentOrganization.id}/invite-codes`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch invite codes');
+        throw new Error(errorData.error || "Failed to fetch invite codes");
       }
-      
+
       const codes = await response.json();
       setInviteCodes(codes);
     } catch (error) {
-      console.error('Error fetching invite codes:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch invite codes');
+      console.error("Error fetching invite codes:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch invite codes",
+      );
     } finally {
       setInitialLoading(false);
     }
@@ -52,23 +56,30 @@ export function InviteCodeManager() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/organizations/${currentOrganization.id}/invite-code`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await fetch(
+        `${API_URL}/organizations/${currentOrganization.id}/invite-code`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to generate invite code');
+        throw new Error(errorData.error || "Failed to generate invite code");
       }
 
       const newCode = await response.json();
-      setInviteCodes(prev => [newCode, ...prev]);
+      setInviteCodes((prev) => [newCode, ...prev]);
     } catch (error) {
-      console.error('Error generating invite code:', error);
-      setError(error instanceof Error ? error.message : 'Failed to generate invite code');
+      console.error("Error generating invite code:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to generate invite code",
+      );
     } finally {
       setLoading(false);
     }
@@ -80,7 +91,7 @@ export function InviteCodeManager() {
       setCopied(code);
       setTimeout(() => setCopied(null), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
+      console.error("Failed to copy:", error);
     }
   };
 
@@ -111,7 +122,7 @@ export function InviteCodeManager() {
           disabled={loading}
           className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:bg-primary-300 transition-colors"
         >
-          {loading ? 'Generating...' : 'Generate New Code'}
+          {loading ? "Generating..." : "Generate New Code"}
         </button>
       </div>
 
@@ -137,7 +148,7 @@ export function InviteCodeManager() {
               onClick={() => copyToClipboard(invite.code)}
               className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
-              {copied === invite.code ? 'Copied!' : 'Copy'}
+              {copied === invite.code ? "Copied!" : "Copy"}
             </button>
           </div>
         ))}
@@ -150,4 +161,4 @@ export function InviteCodeManager() {
       </div>
     </div>
   );
-} 
+}

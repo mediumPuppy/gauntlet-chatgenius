@@ -8,7 +8,7 @@ export interface Organization {
 export interface OrganizationMember {
   organization_id: string;
   user_id: string;
-  role: 'owner' | 'admin' | 'member';
+  role: "owner" | "admin" | "member";
   joined_at: Date;
 }
 
@@ -20,4 +20,4 @@ export interface OrganizationInvite {
   token: string;
   expires_at: Date;
   created_at: Date;
-} 
+}

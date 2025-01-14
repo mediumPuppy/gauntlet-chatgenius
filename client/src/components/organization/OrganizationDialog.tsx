@@ -1,23 +1,31 @@
-import React, { useState } from 'react';
-import { useOrganization } from '../../contexts/OrganizationContext';
-import { Organization } from '../../types/organization';
+import React, { useState } from "react";
+import { useOrganization } from "../../contexts/OrganizationContext";
+import { Organization } from "../../types/organization";
 
 interface OrganizationDialogProps {
   open: boolean;
   onClose: () => void;
 }
 
-export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({ open, onClose }) => {
-  const { organizations, createOrganization, setCurrentOrganization, joinOrganization } = useOrganization();
-  const [newOrgName, setNewOrgName] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({
+  open,
+  onClose,
+}) => {
+  const {
+    organizations,
+    createOrganization,
+    setCurrentOrganization,
+    joinOrganization,
+  } = useOrganization();
+  const [newOrgName, setNewOrgName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleCreateOrg = async () => {
     if (!newOrgName.trim()) return;
-    
+
     setError(null);
     setIsCreating(true);
     try {
@@ -25,7 +33,7 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({ open, on
       setCurrentOrganization(newOrg);
       onClose();
     } catch (error) {
-      setError('Failed to create organization');
+      setError("Failed to create organization");
       console.error(error);
     } finally {
       setIsCreating(false);
@@ -34,14 +42,14 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({ open, on
 
   const handleJoinOrg = async () => {
     if (!inviteCode.trim()) return;
-    
+
     setError(null);
     setIsJoining(true);
     try {
       await joinOrganization(inviteCode.trim());
       onClose();
     } catch (error) {
-      setError('Failed to join organization. Please check your invite code.');
+      setError("Failed to join organization. Please check your invite code.");
       console.error(error);
     } finally {
       setIsJoining(false);
@@ -66,8 +74,18 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({ open, on
             onClick={onClose}
             className="text-primary-500 hover:text-primary-700"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -107,9 +125,9 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({ open, on
                 onChange={(e) => setNewOrgName(e.target.value)}
                 placeholder="Organization Name"
                 className={`flex-1 px-3 py-2 bg-primary-50 border rounded-md focus:outline-none focus:ring-2 ${
-                  error 
-                    ? 'border-red-300 focus:ring-red-200' 
-                    : 'border-primary-200 focus:ring-primary-500 text-primary-900'
+                  error
+                    ? "border-red-300 focus:ring-red-200"
+                    : "border-primary-200 focus:ring-primary-500 text-primary-900"
                 }`}
                 disabled={isCreating}
               />
@@ -118,11 +136,11 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({ open, on
                 disabled={!newOrgName.trim() || isCreating}
                 className={`px-4 py-2 rounded-md text-white font-medium ${
                   !newOrgName.trim() || isCreating
-                    ? 'bg-primary-300 cursor-not-allowed'
-                    : 'bg-primary-600 hover:bg-primary-700'
+                    ? "bg-primary-300 cursor-not-allowed"
+                    : "bg-primary-600 hover:bg-primary-700"
                 }`}
               >
-                {isCreating ? 'Creating...' : 'Create'}
+                {isCreating ? "Creating..." : "Create"}
               </button>
             </div>
           </div>
@@ -147,9 +165,9 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({ open, on
                 onChange={(e) => setInviteCode(e.target.value)}
                 placeholder="Enter invite code"
                 className={`flex-1 px-3 py-2 bg-primary-50 border rounded-md focus:outline-none focus:ring-2 ${
-                  error 
-                    ? 'border-red-300 focus:ring-red-200' 
-                    : 'border-primary-200 focus:ring-primary-500 text-primary-900'
+                  error
+                    ? "border-red-300 focus:ring-red-200"
+                    : "border-primary-200 focus:ring-primary-500 text-primary-900"
                 }`}
                 disabled={isJoining}
               />
@@ -158,20 +176,18 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({ open, on
                 disabled={!inviteCode.trim() || isJoining}
                 className={`px-4 py-2 rounded-md text-white font-medium ${
                   !inviteCode.trim() || isJoining
-                    ? 'bg-primary-300 cursor-not-allowed'
-                    : 'bg-primary-600 hover:bg-primary-700'
+                    ? "bg-primary-300 cursor-not-allowed"
+                    : "bg-primary-600 hover:bg-primary-700"
                 }`}
               >
-                {isJoining ? 'Joining...' : 'Join'}
+                {isJoining ? "Joining..." : "Join"}
               </button>
             </div>
           </div>
         </div>
 
-        {error && (
-          <p className="mt-2 text-sm text-red-600">{error}</p>
-        )}
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </div>
     </div>
   );
-}; 
+};

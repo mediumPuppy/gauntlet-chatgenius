@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useOrganization } from '../../contexts/OrganizationContext';
-import { useChannels } from '../../contexts/ChannelContext';
-import { getDMs } from '../../services/user';
-import StartDMDialog from './StartDMDialog';
-import ChannelDialog from './ChannelDialog';
-import { usePresence } from '../../contexts/PresenceContext';
-import { UserAvatar } from '../common/UserAvatar';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { useOrganization } from "../../contexts/OrganizationContext";
+import { useChannels } from "../../contexts/ChannelContext";
+import { getDMs } from "../../services/user";
+import StartDMDialog from "./StartDMDialog";
+import ChannelDialog from "./ChannelDialog";
+import { usePresence } from "../../contexts/PresenceContext";
+import { UserAvatar } from "../common/UserAvatar";
 
 interface Channel {
   id: string;
@@ -31,7 +31,11 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
   const { token } = useAuth();
   const { currentOrganization } = useOrganization();
   const { channelId, dmId } = useParams();
-  const { setCurrentChannel, isLoading: channelsLoading, channels: contextChannels } = useChannels();
+  const {
+    setCurrentChannel,
+    isLoading: channelsLoading,
+    channels: contextChannels,
+  } = useChannels();
   const [localChannels, setLocalChannels] = useState<Channel[]>([]);
   const [dms, setDMs] = useState<DM[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +54,7 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
   // Update current channel when channelId changes
   useEffect(() => {
     if (channelId && localChannels.length > 0) {
-      const selectedChannel = localChannels.find(c => c.id === channelId);
+      const selectedChannel = localChannels.find((c) => c.id === channelId);
       if (selectedChannel) {
         setCurrentChannel(selectedChannel);
       }
@@ -75,7 +79,7 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
       const dmsData = await getDMs(token);
       setDMs(dmsData);
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setLoading(false);
     }
@@ -88,7 +92,7 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
   return (
     <div className="flex flex-col h-full relative">
       {/* Loading Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-primary-700/50 transition-opacity duration-300 pointer-events-none"
         style={{ opacity: loading || channelsLoading ? 0.7 : 0 }}
       >
@@ -103,7 +107,10 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
       </div>
 
       {/* Content */}
-      <div className="transition-opacity duration-300" style={{ opacity: loading || channelsLoading ? 0.3 : 1 }}>
+      <div
+        className="transition-opacity duration-300"
+        style={{ opacity: loading || channelsLoading ? 0.3 : 1 }}
+      >
         {/* Organization Name */}
         <div className="px-4 py-2 flex items-center justify-between border-b border-primary-600">
           <h1 className="text-white font-bold">
@@ -115,10 +122,22 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
         <div className="mb-8 mt-6">
           <div className="px-4 mb-2 flex justify-between items-center">
             <div className="flex items-center">
-              <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider">Channels</h2>
+              <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider">
+                Channels
+              </h2>
               <button className="ml-2 text-primary-200 hover:text-white">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
             </div>
@@ -131,15 +150,15 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
             </button>
           </div>
           <ul className="space-y-0.5">
-            {localChannels.map(channel => (
+            {localChannels.map((channel) => (
               <li key={channel.id}>
                 <Link
                   to={`/chat/channel/${channel.id}`}
                   onClick={onChannelSelect}
                   className={`px-4 py-2 flex items-center text-sm transition-colors ${
-                    channelId === channel.id 
-                      ? 'bg-primary-600 text-white' 
-                      : 'text-primary-100 hover:bg-primary-600/50 hover:text-white'
+                    channelId === channel.id
+                      ? "bg-primary-600 text-white"
+                      : "text-primary-100 hover:bg-primary-600/50 hover:text-white"
                   }`}
                 >
                   <span className="text-primary-300 mr-2">#</span>
@@ -148,7 +167,9 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
               </li>
             ))}
             {localChannels.length === 0 && (
-              <li className="px-4 py-2 text-primary-400 text-sm">No channels yet</li>
+              <li className="px-4 py-2 text-primary-400 text-sm">
+                No channels yet
+              </li>
             )}
           </ul>
         </div>
@@ -157,10 +178,22 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
         <div className="mb-6">
           <div className="px-4 mb-2 flex justify-between items-center">
             <div className="flex items-center">
-              <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider">Direct Messages</h2>
+              <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider">
+                Direct Messages
+              </h2>
               <button className="ml-2 text-primary-200 hover:text-white">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
             </div>
@@ -173,18 +206,18 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
             </button>
           </div>
           <ul className="space-y-0.5">
-            {dms.map(dm => (
+            {dms.map((dm) => (
               <li key={dm.id}>
                 <Link
                   to={`/chat/dm/${dm.id}`}
                   onClick={onChannelSelect}
                   className={`px-4 py-2 flex items-center text-sm transition-colors ${
-                    dmId === dm.id 
-                      ? 'bg-primary-600 text-white' 
-                      : 'text-primary-100 hover:bg-primary-600/50 hover:text-white'
+                    dmId === dm.id
+                      ? "bg-primary-600 text-white"
+                      : "text-primary-100 hover:bg-primary-600/50 hover:text-white"
                   }`}
                 >
-                  <UserAvatar 
+                  <UserAvatar
                     username={dm.other_username}
                     isOnline={isUserOnline(dm.other_user_id)}
                     size="sm"
@@ -194,7 +227,9 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
               </li>
             ))}
             {dms.length === 0 && (
-              <li className="px-4 py-2 text-primary-400 text-sm">No direct messages yet</li>
+              <li className="px-4 py-2 text-primary-400 text-sm">
+                No direct messages yet
+              </li>
             )}
           </ul>
         </div>

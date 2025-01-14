@@ -1,4 +1,4 @@
-import pool, { testConnection } from './database';
+import pool, { testConnection } from "./database";
 
 const initializeDatabase = async () => {
   try {
@@ -50,15 +50,21 @@ const initializeDatabase = async () => {
     `);
 
     // Create indexes for better performance
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel_id)');
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)');
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_channel_members_user_id ON channel_members(user_id)');
+    await pool.query(
+      "CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel_id)",
+    );
+    await pool.query(
+      "CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)",
+    );
+    await pool.query(
+      "CREATE INDEX IF NOT EXISTS idx_channel_members_user_id ON channel_members(user_id)",
+    );
 
-    console.log('Database initialized successfully');
+    console.log("Database initialized successfully");
   } catch (error) {
-    console.error('Error initializing database:', error);
+    console.error("Error initializing database:", error);
     throw error;
   }
 };
 
-export default initializeDatabase; 
+export default initializeDatabase;

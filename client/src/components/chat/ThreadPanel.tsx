@@ -1,12 +1,12 @@
 // client/src/components/chat/ThreadPanel.tsx
-import { useEffect, useState } from 'react';
-import { Message as MessageType } from '../../types/message';
-import { MessageInput } from './MessageInput';
-import { API_URL } from '../../services/config';
-import { MessageProvider } from '../../contexts/MessageContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { useMessages } from '../../contexts/MessageContext';
-import { Message as MessageComponent } from './MessageList';
+import { useEffect, useState } from "react";
+import { Message as MessageType } from "../../types/message";
+import { MessageInput } from "./MessageInput";
+import { API_URL } from "../../services/config";
+import { MessageProvider } from "../../contexts/MessageContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { useMessages } from "../../contexts/MessageContext";
+import { Message as MessageComponent } from "./MessageList";
 
 interface ThreadPanelProps {
   messageId: string;
@@ -25,19 +25,19 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
       try {
         const res = await fetch(`${API_URL}/messages/thread/${messageId}`, {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         });
-        
+
         if (!res.ok) {
           throw new Error(`Failed to fetch thread: ${res.status}`);
         }
-        
+
         const data = await res.json();
         setParent(data.parent);
         setReplies(data.replies);
       } catch (error) {
-        console.error('Error fetching thread:', error);
+        console.error("Error fetching thread:", error);
       }
     }
     if (messageId && token) {
@@ -48,13 +48,15 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
   // Update replies when new messages or reactions come in
   useEffect(() => {
     // Get all messages that belong to this thread
-    const threadMessages = messages.filter(msg => msg.parentId === messageId);
-    
+    const threadMessages = messages.filter((msg) => msg.parentId === messageId);
+
     // Merge existing replies with new messages
-    setReplies(prevReplies => {
-      const existingIds = new Set(prevReplies.map(reply => reply.id));
-      const newReplies = threadMessages.filter(msg => !existingIds.has(msg.id));
-      
+    setReplies((prevReplies) => {
+      const existingIds = new Set(prevReplies.map((reply) => reply.id));
+      const newReplies = threadMessages.filter(
+        (msg) => !existingIds.has(msg.id),
+      );
+
       if (newReplies.length > 0) {
         return [...prevReplies, ...newReplies].sort((a, b) => {
           const timeA = new Date(a.timestamp).getTime();
@@ -66,20 +68,20 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
     });
 
     // Update parent message if it exists in the messages array
-    const updatedParent = messages.find(msg => msg.id === messageId);
+    const updatedParent = messages.find((msg) => msg.id === messageId);
     if (updatedParent && parent) {
       // Only update specific fields to avoid infinite loop
-      const hasChanges = 
+      const hasChanges =
         updatedParent.reactions !== parent.reactions ||
         updatedParent.replyCount !== parent.replyCount ||
         updatedParent.hasReplies !== parent.hasReplies;
 
       if (hasChanges) {
-        setParent(current => ({
+        setParent((current) => ({
           ...current!,
           reactions: updatedParent.reactions || {},
           replyCount: updatedParent.replyCount,
-          hasReplies: updatedParent.hasReplies
+          hasReplies: updatedParent.hasReplies,
         }));
       }
     }
@@ -93,15 +95,12 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
           ✕
         </button>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto p-4">
         {parent && (
-          <MessageComponent 
-            message={parent}
-            onThreadClick={() => {}}
-          />
+          <MessageComponent message={parent} onThreadClick={() => {}} />
         )}
-        
+
         <div className="space-y-4">
           {replies.map((reply) => (
             <MessageComponent
@@ -114,9 +113,9 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
       </div>
 
       {parent && (
-        <MessageProvider channelId={parent.channelId || ''} isDM={false}>
+        <MessageProvider channelId={parent.channelId || ""} isDM={false}>
           <div className="p-4 border-t border-gray-200">
-            <MessageInput 
+            <MessageInput
               parentId={messageId}
               placeholder={`Reply to thread...`}
               isThread={true}

@@ -1,7 +1,15 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
-import { useAuth } from './AuthContext';
-import { useOrganization } from './OrganizationContext';
-import { getChannels } from '../services/channel';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+  useRef,
+} from "react";
+import { useAuth } from "./AuthContext";
+import { useOrganization } from "./OrganizationContext";
+import { getChannels } from "../services/channel";
 
 interface Channel {
   id: string;
@@ -56,8 +64,8 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
         setChannels(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch channels');
-      console.error('Failed to fetch channels:', err);
+      setError(err instanceof Error ? err.message : "Failed to fetch channels");
+      console.error("Failed to fetch channels:", err);
     } finally {
       if (currentOrganization.id === prevOrgIdRef.current) {
         setIsLoading(false);
@@ -77,14 +85,14 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ChannelContext.Provider 
-      value={{ 
-        channels, 
-        currentChannel, 
-        setCurrentChannel, 
-        isLoading, 
+    <ChannelContext.Provider
+      value={{
+        channels,
+        currentChannel,
+        setCurrentChannel,
+        isLoading,
         error,
-        refreshChannels 
+        refreshChannels,
       }}
     >
       {children}
@@ -95,7 +103,7 @@ export function ChannelProvider({ children }: { children: ReactNode }) {
 export function useChannels() {
   const context = useContext(ChannelContext);
   if (!context) {
-    throw new Error('useChannels must be used within a ChannelProvider');
+    throw new Error("useChannels must be used within a ChannelProvider");
   }
   return context;
-} 
+}

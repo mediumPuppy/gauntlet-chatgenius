@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import pool from '../config/database';
-import { User } from '../models/user';
-import { AuthRequest } from '../middleware/auth';
+import { Request, Response } from "express";
+import { v4 as uuidv4 } from "uuid";
+import pool from "../config/database";
+import { User } from "../models/user";
+import { AuthRequest } from "../middleware/auth";
 
 interface DMResponse {
   id: string;
@@ -17,26 +17,25 @@ interface DMResponse {
 
 export const startDM = async (req: AuthRequest, res: Response) => {
   if (!req.user) {
-    return res.status(401).json({ error: 'User not authenticated' });
+    return res.status(401).json({ error: "User not authenticated" });
   }
 
   const { targetUserId } = req.body;
   const userId = req.user.id;
-  
+
   try {
     // Check if users are the same
     if (userId === targetUserId) {
-      return res.status(400).json({ error: 'Cannot start DM with yourself' });
+      return res.status(400).json({ error: "Cannot start DM with yourself" });
     }
 
     // Check if target user exists
-    const userCheck = await pool.query(
-      'SELECT id FROM users WHERE id = $1',
-      [targetUserId]
-    );
+    const userCheck = await pool.query("SELECT id FROM users WHERE id = $1", [
+      targetUserId,
+    ]);
 
     if (userCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Target user not found' });
+      return res.status(404).json({ error: "Target user not found" });
     }
 
     // Check if DM already exists
@@ -49,7 +48,7 @@ export const startDM = async (req: AuthRequest, res: Response) => {
        END) = u.id
        WHERE (user1_id = $1 AND user2_id = $2) 
        OR (user1_id = $2 AND user2_id = $1)`,
-      [userId, targetUserId]
+      [userId, targetUserId],
     );
 
     if (existingDM.rows.length > 0) {
@@ -58,7 +57,7 @@ export const startDM = async (req: AuthRequest, res: Response) => {
         id: dm.id,
         other_username: dm.other_username,
         other_user_id: dm.user1_id === userId ? dm.user2_id : dm.user1_id,
-        created_at: dm.created_at
+        created_at: dm.created_at,
       });
     }
 
@@ -68,30 +67,30 @@ export const startDM = async (req: AuthRequest, res: Response) => {
       `INSERT INTO direct_messages (id, user1_id, user2_id)
        VALUES ($1, $2, $3)
        RETURNING *`,
-      [dmId, userId, targetUserId]
+      [dmId, userId, targetUserId],
     );
 
     // Get other user's info
     const otherUser = await pool.query(
-      'SELECT username FROM users WHERE id = $1',
-      [targetUserId]
+      "SELECT username FROM users WHERE id = $1",
+      [targetUserId],
     );
 
     res.status(201).json({
       id: newDM.rows[0].id,
       other_username: otherUser.rows[0].username,
       other_user_id: targetUserId,
-      created_at: newDM.rows[0].created_at
+      created_at: newDM.rows[0].created_at,
     });
   } catch (error) {
-    console.error('Error in startDM:', error);
-    res.status(500).json({ error: 'Failed to start DM' });
+    console.error("Error in startDM:", error);
+    res.status(500).json({ error: "Failed to start DM" });
   }
 };
 
 export const getUserDMs = async (req: AuthRequest, res: Response) => {
   if (!req.user) {
-    return res.status(401).json({ error: 'User not authenticated' });
+    return res.status(401).json({ error: "User not authenticated" });
   }
 
   try {
@@ -128,19 +127,19 @@ export const getUserDMs = async (req: AuthRequest, res: Response) => {
         ORDER BY m.created_at DESC
         LIMIT 1
       ) DESC NULLS LAST`,
-      [req.user.id]
+      [req.user.id],
     );
 
     res.json(dms.rows);
   } catch (error) {
-    console.error('Error in getUserDMs:', error);
-    res.status(500).json({ error: 'Failed to get DMs' });
+    console.error("Error in getUserDMs:", error);
+    res.status(500).json({ error: "Failed to get DMs" });
   }
 };
 
 export const getDMById = async (req: AuthRequest, res: Response) => {
   if (!req.user) {
-    return res.status(401).json({ error: 'User not authenticated' });
+    return res.status(401).json({ error: "User not authenticated" });
   }
 
   const dmId = req.params.id;
@@ -162,28 +161,30 @@ export const getDMById = async (req: AuthRequest, res: Response) => {
       JOIN users u1 ON dm.user1_id = u1.id
       JOIN users u2 ON dm.user2_id = u2.id
       WHERE dm.id = $2 AND (dm.user1_id = $1 OR dm.user2_id = $1)`,
-      [userId, dmId]
+      [userId, dmId],
     );
 
     if (dm.rows.length === 0) {
-      return res.status(404).json({ error: 'DM not found or you do not have access' });
+      return res
+        .status(404)
+        .json({ error: "DM not found or you do not have access" });
     }
 
     res.json({
       id: dm.rows[0].id,
       other_username: dm.rows[0].other_username,
       other_user_id: dm.rows[0].other_user_id,
-      created_at: dm.rows[0].created_at
+      created_at: dm.rows[0].created_at,
     });
   } catch (error) {
-    console.error('Error in getDMById:', error);
-    res.status(500).json({ error: 'Failed to get DM details' });
+    console.error("Error in getDMById:", error);
+    res.status(500).json({ error: "Failed to get DM details" });
   }
 };
 
 export const getDMMessages = async (req: AuthRequest, res: Response) => {
   if (!req.user) {
-    return res.status(401).json({ error: 'User not authenticated' });
+    return res.status(401).json({ error: "User not authenticated" });
   }
 
   const dmId = req.params.id;
@@ -192,12 +193,14 @@ export const getDMMessages = async (req: AuthRequest, res: Response) => {
   try {
     // First verify the user has access to this DM
     const dmCheck = await pool.query(
-      'SELECT * FROM direct_messages WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)',
-      [dmId, userId]
+      "SELECT * FROM direct_messages WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)",
+      [dmId, userId],
     );
 
     if (dmCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'Not authorized to access this DM' });
+      return res
+        .status(403)
+        .json({ error: "Not authorized to access this DM" });
     }
 
     // Get messages
@@ -212,12 +215,12 @@ export const getDMMessages = async (req: AuthRequest, res: Response) => {
       JOIN users u ON m.user_id = u.id
       WHERE m.dm_id = $1
       ORDER BY m.created_at ASC`,
-      [dmId]
+      [dmId],
     );
 
     res.json(messages.rows);
   } catch (error) {
-    console.error('Error in getDMMessages:', error);
-    res.status(500).json({ error: 'Failed to get DM messages' });
+    console.error("Error in getDMMessages:", error);
+    res.status(500).json({ error: "Failed to get DM messages" });
   }
 };

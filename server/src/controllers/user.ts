@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
-import { userQueries } from '../models/user';
-import { AuthRequest } from '../middleware/auth';
+import { Request, Response } from "express";
+import { userQueries } from "../models/user";
+import { AuthRequest } from "../middleware/auth";
 
 export const userController = {
   async searchUsers(req: AuthRequest, res: Response) {
@@ -10,15 +10,19 @@ export const userController = {
       const currentUserId = req.user!.id;
 
       if (!organizationId) {
-        return res.status(400).json({ error: 'Organization ID is required' });
+        return res.status(400).json({ error: "Organization ID is required" });
       }
 
       // Search users excluding the current user
-      const users = await userQueries.searchOrganizationUsers(query, organizationId, currentUserId);
+      const users = await userQueries.searchOrganizationUsers(
+        query,
+        organizationId,
+        currentUserId,
+      );
       res.json(users);
     } catch (error) {
-      console.error('Error searching users:', error);
-      res.status(500).json({ error: 'Failed to search users' });
+      console.error("Error searching users:", error);
+      res.status(500).json({ error: "Failed to search users" });
     }
-  }
-}; 
+  },
+};

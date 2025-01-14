@@ -42,7 +42,7 @@ export class WebSocketHandler {
 
   private async authenticateConnection(
     ws: WebSocketClient,
-    token: string
+    token: string,
   ): Promise<boolean> {
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
@@ -58,7 +58,7 @@ export class WebSocketHandler {
       await this.broadcastPresenceUpdate(ws.userId, true);
       return true;
     } catch (error) {
-      console.error('WebSocket authentication failed:', error);
+      console.error("WebSocket authentication failed:", error);
       ws.send(JSON.stringify({ type: "error", error: "Invalid token" }));
       ws.close();
       return false;
@@ -69,14 +69,14 @@ export class WebSocketHandler {
     try {
       const user = await pool.query(
         "SELECT username, last_seen FROM users WHERE id = $1",
-        [userId]
+        [userId],
       );
       if (user.rows.length === 0) return;
 
       // Get all organizations the user is part of
       const orgs = await pool.query(
         "SELECT organization_id FROM organization_members WHERE user_id = $1",
-        [userId]
+        [userId],
       );
 
       // Get all unique members from all organizations
@@ -84,7 +84,7 @@ export class WebSocketHandler {
       for (const org of orgs.rows) {
         const members = await pool.query(
           "SELECT user_id FROM organization_members WHERE organization_id = $1",
-          [org.organization_id]
+          [org.organization_id],
         );
         members.rows.forEach((member) => memberSet.add(member.user_id));
       }
@@ -161,7 +161,7 @@ export class WebSocketHandler {
     try {
       const user = await pool.query(
         "SELECT username FROM users WHERE id = $1",
-        [ws.userId]
+        [ws.userId],
       );
       if (user.rows.length === 0) {
         ws.send(JSON.stringify({ type: "error", error: "User not found" }));
@@ -184,7 +184,7 @@ export class WebSocketHandler {
         const dmCheck = await pool.query(
           `SELECT * FROM direct_messages 
            WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-          [data.channelId, ws.userId]
+          [data.channelId, ws.userId],
         );
 
         if (dmCheck.rows.length === 0) {
@@ -192,7 +192,7 @@ export class WebSocketHandler {
             JSON.stringify({
               type: "error",
               error: "Not authorized for this DM",
-            })
+            }),
           );
           return;
         }
@@ -200,7 +200,7 @@ export class WebSocketHandler {
         // Save DM message
         await pool.query(
           "INSERT INTO messages (id, content, user_id, dm_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
-          [data.id, data.content, ws.userId, data.channelId]
+          [data.id, data.content, ws.userId, data.channelId],
         );
 
         // Broadcast to DM participants
@@ -212,7 +212,7 @@ export class WebSocketHandler {
         // Verify user is part of the channel
         const channelCheck = await pool.query(
           "SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2",
-          [data.channelId, ws.userId]
+          [data.channelId, ws.userId],
         );
 
         if (channelCheck.rows.length === 0) {
@@ -220,7 +220,7 @@ export class WebSocketHandler {
             JSON.stringify({
               type: "error",
               error: "Not authorized for this channel",
-            })
+            }),
           );
           return;
         }
@@ -234,7 +234,7 @@ export class WebSocketHandler {
             ws.userId,
             data.channelId,
             data.parentId || null,
-          ]
+          ],
         );
 
         // Broadcast to channel members
@@ -246,7 +246,7 @@ export class WebSocketHandler {
     } catch (error) {
       console.error("Error handling chat message:", error);
       ws.send(
-        JSON.stringify({ type: "error", error: "Failed to process message" })
+        JSON.stringify({ type: "error", error: "Failed to process message" }),
       );
     }
   }
@@ -255,7 +255,7 @@ export class WebSocketHandler {
     try {
       const user = await pool.query(
         "SELECT username FROM users WHERE id = $1",
-        [ws.userId]
+        [ws.userId],
       );
       if (user.rows.length === 0) return;
 
@@ -279,7 +279,7 @@ export class WebSocketHandler {
 
   private async broadcastToChannel(
     channelId: string,
-    message: WebSocketMessage
+    message: WebSocketMessage,
   ) {
     const channelClients = clients.get(channelId) || new Set();
     const messageStr = JSON.stringify(message);
@@ -296,7 +296,7 @@ export class WebSocketHandler {
       // Get DM participants
       const participants = await pool.query(
         "SELECT user1_id, user2_id FROM direct_messages WHERE id = $1",
-        [dmId]
+        [dmId],
       );
 
       if (participants.rows.length === 0) return;
@@ -335,7 +335,7 @@ export class WebSocketHandler {
       // Get the channel/DM ID and parent_id for this message
       const message = await pool.query(
         "SELECT channel_id, dm_id, parent_id FROM messages WHERE id = $1",
-        [messageId]
+        [messageId],
       );
 
       if (message.rows.length === 0) {
@@ -365,20 +365,20 @@ export class WebSocketHandler {
     } catch (error) {
       console.error("Error handling reaction:", error);
       ws?.send(
-        JSON.stringify({ type: "error", error: "Failed to process reaction" })
+        JSON.stringify({ type: "error", error: "Failed to process reaction" }),
       );
     }
   }
 
   public handleConnection(ws: WebSocketClient) {
     ws.isAlive = true;
-    
-    ws.on('pong', () => {
+
+    ws.on("pong", () => {
       ws.isAlive = true;
     });
 
-    ws.on('error', (err) => {
-      console.error('WebSocket client error:', err);
+    ws.on("error", (err) => {
+      console.error("WebSocket client error:", err);
     });
 
     ws.on("message", async (message: string) => {
@@ -387,7 +387,7 @@ export class WebSocketHandler {
         await this.handleMessage(ws, data);
       } catch (error) {
         ws.send(
-          JSON.stringify({ type: "error", error: "Invalid message format" })
+          JSON.stringify({ type: "error", error: "Invalid message format" }),
         );
       }
     });
@@ -415,7 +415,7 @@ export class WebSocketHandler {
       // Verify user is member of the channel
       const member = await pool.query(
         "SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2",
-        [channelId, ws.userId]
+        [channelId, ws.userId],
       );
 
       if (member.rows.length === 0) {
@@ -423,7 +423,7 @@ export class WebSocketHandler {
           JSON.stringify({
             type: "error",
             error: "Not a member of this channel",
-          })
+          }),
         );
         return;
       }
@@ -436,7 +436,7 @@ export class WebSocketHandler {
     } catch (error) {
       console.error("Error joining channel:", error);
       ws.send(
-        JSON.stringify({ type: "error", error: "Failed to join channel" })
+        JSON.stringify({ type: "error", error: "Failed to join channel" }),
       );
     }
   }
@@ -449,12 +449,15 @@ export class WebSocketHandler {
       const dmCheck = await pool.query(
         `SELECT * FROM direct_messages 
          WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-        [dmId, ws.userId]
+        [dmId, ws.userId],
       );
 
       if (dmCheck.rows.length === 0) {
         ws.send(
-          JSON.stringify({ type: "error", error: "Not authorized for this DM" })
+          JSON.stringify({
+            type: "error",
+            error: "Not authorized for this DM",
+          }),
         );
         return;
       }

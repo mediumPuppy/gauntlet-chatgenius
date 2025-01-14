@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
-import { useOrganization } from '../contexts/OrganizationContext';
-import { InviteCodeManager } from '../components/organization/InviteCodeManager';
+import { Link } from "react-router-dom";
+import { useOrganization } from "../contexts/OrganizationContext";
+import { InviteCodeManager } from "../components/organization/InviteCodeManager";
 
 export default function OrganizationSettingsPage() {
   const { currentOrganization, userRole } = useOrganization();
@@ -15,7 +15,7 @@ export default function OrganizationSettingsPage() {
     );
   }
 
-  const isAdmin = userRole === 'owner' || userRole === 'admin';
+  const isAdmin = userRole === "owner" || userRole === "admin";
 
   return (
     <div className="min-h-screen bg-primary-50">
@@ -27,8 +27,18 @@ export default function OrganizationSettingsPage() {
               to="/chat"
               className="mr-4 text-primary-600 hover:text-primary-700 transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
               </svg>
             </Link>
             <h1 className="text-2xl font-semibold text-primary-900">
@@ -79,4 +89,4 @@ export default function OrganizationSettingsPage() {
       </div>
     </div>
   );
-} 
+}

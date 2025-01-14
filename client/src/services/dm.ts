@@ -1,4 +1,4 @@
-import { API_URL } from '../services/config';
+import { API_URL } from "../services/config";
 
 interface DM {
   id: string;
@@ -11,14 +11,14 @@ interface DM {
 export async function getDMById(token: string, dmId: string): Promise<DM> {
   const response = await fetch(`${API_URL}/dm/${dmId}`, {
     headers: {
-      'Authorization': `Bearer ${token}`
-    }
+      Authorization: `Bearer ${token}`,
+    },
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch DM');
+    throw new Error(error.message || "Failed to fetch DM");
   }
 
   return response.json();
-} 
+}

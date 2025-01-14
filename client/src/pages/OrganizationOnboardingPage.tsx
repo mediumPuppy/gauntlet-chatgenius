@@ -1,37 +1,43 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useOrganization } from '../contexts/OrganizationContext';
-import { Navigation } from '../components/common/Navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useOrganization } from "../contexts/OrganizationContext";
+import { Navigation } from "../components/common/Navigation";
+import { useMutation } from "@tanstack/react-query";
 
 export default function OrganizationOnboardingPage() {
-  const [organizationName, setOrganizationName] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
-  const [error, setError] = useState('');
+  const [organizationName, setOrganizationName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { createOrganization, joinOrganization } = useOrganization();
 
   const createOrgMutation = useMutation({
     mutationFn: createOrganization,
-    onSuccess: () => navigate('/chat'),
-    onError: (err) => setError(err instanceof Error ? err.message : 'Failed to create organization')
+    onSuccess: () => navigate("/chat"),
+    onError: (err) =>
+      setError(
+        err instanceof Error ? err.message : "Failed to create organization",
+      ),
   });
 
   const joinOrgMutation = useMutation({
     mutationFn: joinOrganization,
-    onSuccess: () => navigate('/chat'),
-    onError: (err) => setError(err instanceof Error ? err.message : 'Failed to join organization')
+    onSuccess: () => navigate("/chat"),
+    onError: (err) =>
+      setError(
+        err instanceof Error ? err.message : "Failed to join organization",
+      ),
   });
 
   const handleCreateOrganization = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     createOrgMutation.mutate(organizationName);
   };
 
   const handleJoinOrganization = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     joinOrgMutation.mutate(inviteCode);
   };
 
@@ -59,10 +65,18 @@ export default function OrganizationOnboardingPage() {
 
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-medium text-primary-900">Create an Organization</h3>
-              <form onSubmit={handleCreateOrganization} className="mt-4 space-y-4">
+              <h3 className="text-xl font-medium text-primary-900">
+                Create an Organization
+              </h3>
+              <form
+                onSubmit={handleCreateOrganization}
+                className="mt-4 space-y-4"
+              >
                 <div>
-                  <label htmlFor="organizationName" className="block text-sm font-medium text-primary-700">
+                  <label
+                    htmlFor="organizationName"
+                    className="block text-sm font-medium text-primary-700"
+                  >
                     Organization Name
                   </label>
                   <input
@@ -79,7 +93,7 @@ export default function OrganizationOnboardingPage() {
                   disabled={isLoading}
                   className="w-full bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors disabled:bg-primary-300 disabled:text-primary-100"
                 >
-                  {isLoading ? 'Creating...' : 'Create Organization'}
+                  {isLoading ? "Creating..." : "Create Organization"}
                 </button>
               </form>
             </div>
@@ -94,13 +108,18 @@ export default function OrganizationOnboardingPage() {
             </div>
 
             <div>
-              <h3 className="text-xl font-medium text-primary-900">Join an Organization</h3>
+              <h3 className="text-xl font-medium text-primary-900">
+                Join an Organization
+              </h3>
               <p className="mt-2 text-sm text-primary-700 mb-4">
                 Enter your invite code below to join an existing organization.
               </p>
               <form onSubmit={handleJoinOrganization} className="space-y-4">
                 <div>
-                  <label htmlFor="inviteCode" className="block text-sm font-medium text-primary-700">
+                  <label
+                    htmlFor="inviteCode"
+                    className="block text-sm font-medium text-primary-700"
+                  >
                     Invite Code
                   </label>
                   <input
@@ -118,7 +137,7 @@ export default function OrganizationOnboardingPage() {
                   disabled={isLoading}
                   className="w-full bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors disabled:bg-primary-300 disabled:text-primary-100"
                 >
-                  {isLoading ? 'Joining...' : 'Join Organization'}
+                  {isLoading ? "Joining..." : "Join Organization"}
                 </button>
               </form>
             </div>

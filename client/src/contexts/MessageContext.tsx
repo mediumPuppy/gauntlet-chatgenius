@@ -111,7 +111,7 @@ export function MessageProvider({
       console.log("MessageContext: Checking for mentions in ai:", content);
       const mentions = content.match(/@(\w+)/g);
       if (mentions) {
-        mentions.forEach(mention => {
+        mentions.forEach((mention) => {
           console.log("MessageContext: Found mentions ai:", mentions);
 
           const username = mention.substring(1); // Remove @ symbol
@@ -124,7 +124,7 @@ export function MessageProvider({
         });
       }
     },
-    [user, channelId, wsSendMessage, messages, token]
+    [user, channelId, wsSendMessage, messages, token],
   );
 
   // Fetch message history when channel changes
@@ -146,7 +146,7 @@ export function MessageProvider({
           console.error(
             "Failed to fetch messages:",
             response.status,
-            response.statusText
+            response.statusText,
           );
           throw new Error("Failed to fetch messages");
         }
@@ -178,7 +178,7 @@ export function MessageProvider({
 
           // Add all message IDs to processed set
           transformedMessages.forEach((msg: Message) =>
-            processedMessageIds.current.add(msg.id)
+            processedMessageIds.current.add(msg.id),
           );
 
           setMessages(transformedMessages);
@@ -257,7 +257,7 @@ export function MessageProvider({
           if (processedMessageIds.current.size > 1000) {
             const oldestEntries = Array.from(processedMessageIds.current).slice(
               0,
-              500
+              500,
             );
             processedMessageIds.current = new Set(oldestEntries);
           }
@@ -272,7 +272,7 @@ export function MessageProvider({
                         hasReplies: true,
                         replyCount: (msg.replyCount || 0) + 1,
                       }
-                    : msg
+                    : msg,
                 )
               : prev;
 
@@ -304,7 +304,7 @@ export function MessageProvider({
           // Clear typing indicator after 3 seconds
           setTimeout(() => {
             setTypingUsers((prev) =>
-              prev.filter((u) => u.userId !== typingUserId)
+              prev.filter((u) => u.userId !== typingUserId),
             );
           }, 3000);
           break;
@@ -332,7 +332,7 @@ export function MessageProvider({
                 const currentReactions = { ...(msg.reactions || {}) };
                 console.log(
                   "Current reactions before update:",
-                  currentReactions
+                  currentReactions,
                 );
 
                 if (action === "added") {
@@ -343,7 +343,7 @@ export function MessageProvider({
                   // Remove user from the emoji's users array
                   if (currentReactions[emoji]) {
                     currentReactions[emoji] = currentReactions[emoji].filter(
-                      (id) => id !== userId
+                      (id) => id !== userId,
                     );
                     if (currentReactions[emoji].length === 0) {
                       delete currentReactions[emoji];
@@ -364,12 +364,12 @@ export function MessageProvider({
 
     eventEmitter.addEventListener(
       WS_MESSAGE_EVENT,
-      handleMessage as EventListener
+      handleMessage as EventListener,
     );
     return () =>
       eventEmitter.removeEventListener(
         WS_MESSAGE_EVENT,
-        handleMessage as EventListener
+        handleMessage as EventListener,
       );
   }, [channelId, eventEmitter, ws]);
 

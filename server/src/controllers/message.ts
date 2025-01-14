@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import pool from '../config/database';
-import { AuthRequest } from '../middleware/auth';
-import { vectorStoreService } from '../services/vectorStore';
+import { Request, Response } from "express";
+import { v4 as uuidv4 } from "uuid";
+import pool from "../config/database";
+import { AuthRequest } from "../middleware/auth";
+import { vectorStoreService } from "../services/vectorStore";
 
 interface Message {
   id: string;
@@ -18,34 +18,37 @@ interface Message {
   reply_count?: number;
 }
 
-export const createMessage = async (req: AuthRequest, res: Response): Promise<void> => {
+export const createMessage = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   const { content, channelId, dmId, parentId } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
   if (!content) {
-    res.status(400).json({ error: 'Message content is required' });
+    res.status(400).json({ error: "Message content is required" });
     return;
   }
 
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     let effectiveChannelId = channelId;
 
     // If this is a thread reply, get the parent message's channel
     if (parentId) {
       const parentResult = await client.query(
-        'SELECT channel_id FROM messages WHERE id = $1',
-        [parentId]
+        "SELECT channel_id FROM messages WHERE id = $1",
+        [parentId],
       );
       if (parentResult.rows.length === 0) {
-        res.status(404).json({ error: 'Parent message not found' });
+        res.status(404).json({ error: "Parent message not found" });
         return;
       }
       effectiveChannelId = parentResult.rows[0].channel_id;
@@ -54,36 +57,36 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
     // Now check channel membership with the correct channel ID
     if (effectiveChannelId) {
       const channelCheck = await client.query(
-        'SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2',
-        [effectiveChannelId, userId]
+        "SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2",
+        [effectiveChannelId, userId],
       );
-      
+
       if (channelCheck.rows.length === 0) {
-        res.status(403).json({ error: 'Not authorized to send messages in this channel' });
+        res
+          .status(403)
+          .json({ error: "Not authorized to send messages in this channel" });
         return;
       }
 
       // Get workspace ID for the channel
       const workspaceResult = await client.query(
-        'SELECT organization_id FROM channels WHERE id = $1',
-        [effectiveChannelId]
+        "SELECT organization_id FROM channels WHERE id = $1",
+        [effectiveChannelId],
       );
       const workspaceId = workspaceResult.rows[0].organization_id;
 
       // Update vector stores asynchronously
       Promise.all([
         // Update channel-specific store
-        vectorStoreService.addDocuments(
-          { type: 'channel', channelId },
-          [content]
-        ),
+        vectorStoreService.addDocuments({ type: "channel", channelId }, [
+          content,
+        ]),
         // Update workspace-level store
-        vectorStoreService.addDocuments(
-          { type: 'workspace', workspaceId },
-          [content]
-        )
-      ]).catch(error => {
-        console.error('Error updating vector stores:', error);
+        vectorStoreService.addDocuments({ type: "workspace", workspaceId }, [
+          content,
+        ]),
+      ]).catch((error) => {
+        console.error("Error updating vector stores:", error);
       });
     }
 
@@ -92,26 +95,30 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       const dmCheck = await client.query(
         `SELECT * FROM direct_messages 
          WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-        [dmId, userId]
+        [dmId, userId],
       );
-      
+
       if (dmCheck.rows.length === 0) {
-        res.status(403).json({ error: 'Not authorized to send messages in this DM' });
+        res
+          .status(403)
+          .json({ error: "Not authorized to send messages in this DM" });
         return;
       }
     } else if (channelId) {
       // Verify user is part of the channel
       const channelCheck = await client.query(
-        'SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2',
-        [channelId, userId]
+        "SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2",
+        [channelId, userId],
       );
-      
+
       if (channelCheck.rows.length === 0) {
-        res.status(403).json({ error: 'Not authorized to send messages in this channel' });
+        res
+          .status(403)
+          .json({ error: "Not authorized to send messages in this channel" });
         return;
       }
     } else {
-      res.status(400).json({ error: 'Must provide either channelId or dmId' });
+      res.status(400).json({ error: "Must provide either channelId or dmId" });
       return;
     }
 
@@ -120,7 +127,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       `INSERT INTO messages (id, content, user_id, channel_id, dm_id, parent_id, created_at) 
        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [messageId, content, userId, effectiveChannelId, dmId, parentId]
+      [messageId, content, userId, effectiveChannelId, dmId, parentId],
     );
     // 2. If this is a reply (parentId provided), update parent counters
     if (parentId) {
@@ -129,13 +136,13 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
          SET has_replies = true,
              reply_count = reply_count + 1
          WHERE id = $1`,
-        [parentId]
+        [parentId],
       );
     }
     // Get sender info
     const sender = await client.query(
-      'SELECT username FROM users WHERE id = $1',
-      [userId]
+      "SELECT username FROM users WHERE id = $1",
+      [userId],
     );
 
     const response = {
@@ -145,7 +152,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       channelId: result.rows[0].channel_id,
       dmId: result.rows[0].dm_id,
       senderName: sender.rows[0].username,
-      timestamp: result.rows[0].created_at
+      timestamp: result.rows[0].created_at,
     };
 
     // Add message to vector store if it's in a channel (not DM)
@@ -153,50 +160,56 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       try {
         // Add to channel's vector store
         await vectorStoreService.addDocuments(
-          { type: 'channel', channelId: effectiveChannelId },
-          [content]
+          { type: "channel", channelId: effectiveChannelId },
+          [content],
         );
 
         // Get workspace ID and add to workspace's vector store
         const workspaceResult = await client.query(
-          'SELECT organization_id FROM channels WHERE id = $1',
-          [effectiveChannelId]
+          "SELECT organization_id FROM channels WHERE id = $1",
+          [effectiveChannelId],
         );
-        
+
         if (workspaceResult.rows.length > 0) {
           await vectorStoreService.addDocuments(
-            { type: 'workspace', workspaceId: workspaceResult.rows[0].organization_id },
-            [content]
+            {
+              type: "workspace",
+              workspaceId: workspaceResult.rows[0].organization_id,
+            },
+            [content],
           );
         }
       } catch (vectorError) {
-        console.error('Error adding message to vector store:', vectorError);
+        console.error("Error adding message to vector store:", vectorError);
         // Don't fail the message creation if vector store update fails
       }
     }
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     res.status(201).json(response);
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error creating message:', error);
-    res.status(500).json({ error: 'Failed to create message' });
+    await client.query("ROLLBACK");
+    console.error("Error creating message:", error);
+    res.status(500).json({ error: "Failed to create message" });
   } finally {
     client.release();
   }
 };
 
-export const getMessages = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getMessages = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
   const { channelId, dmId } = req.query;
   const userId = req.user?.id;
 
   if (!userId) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
   if (!channelId && !dmId) {
-    res.status(400).json({ error: 'Must provide either channelId or dmId' });
+    res.status(400).json({ error: "Must provide either channelId or dmId" });
     return;
   }
 
@@ -228,7 +241,7 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
          GROUP BY m.id, u.username
          ORDER BY m.created_at DESC
          LIMIT 50`,
-        [dmId, userId]
+        [dmId, userId],
       );
     } else {
       // Verify user is part of the channel and get messages
@@ -264,19 +277,18 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
         GROUP BY m.id, u.username, m.created_at, m.content, m.user_id, m.channel_id, m.dm_id
         ORDER BY m.created_at DESC
         LIMIT 50`,
-        [channelId, userId]
+        [channelId, userId],
       );
     }
 
     const formattedMessages = messages.rows.map((msg: Message) => {
-
       // Parse reactions if they're a string
       let parsedReactions = msg.reactions;
-      if (typeof msg.reactions === 'string') {
+      if (typeof msg.reactions === "string") {
         try {
           parsedReactions = JSON.parse(msg.reactions);
         } catch (e) {
-          console.error('Failed to parse reactions for message:', msg.id, e);
+          console.error("Failed to parse reactions for message:", msg.id, e);
           parsedReactions = {};
         }
       }
@@ -289,9 +301,9 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
         dmId: msg.dm_id,
         senderName: msg.sender_name,
         timestamp: msg.created_at,
-        reactions: parsedReactions || {},  // Ensure we always have an object
+        reactions: parsedReactions || {}, // Ensure we always have an object
         hasReplies: msg.has_replies,
-        replyCount: msg.reply_count
+        replyCount: msg.reply_count,
       };
 
       return formatted;
@@ -299,8 +311,8 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
 
     res.json(formattedMessages);
   } catch (error) {
-    console.error('Error getting messages:', error);
-    res.status(500).json({ error: 'Failed to get messages' });
+    console.error("Error getting messages:", error);
+    res.status(500).json({ error: "Failed to get messages" });
   }
 };
 
@@ -314,12 +326,12 @@ export const getMainChatMessages = async (req: AuthRequest, res: Response) => {
          AND parent_id IS NULL
        ORDER BY created_at DESC
        LIMIT 50`,
-      [req.query.channelId] // or however you pass the channelId
+      [req.query.channelId], // or however you pass the channelId
     );
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching main chat messages:', error);
-    res.status(500).json({ error: 'Failed to fetch main-chat messages' });
+    console.error("Error fetching main chat messages:", error);
+    res.status(500).json({ error: "Failed to fetch main-chat messages" });
   }
 };
 
@@ -329,7 +341,7 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
     // 1. Fetch the parent message with reactions
@@ -362,11 +374,13 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
         AND cm.user_id = $2
       )
       GROUP BY m.id, u.username`,
-      [messageId, userId]
+      [messageId, userId],
     );
 
     if (parentResult.rows.length === 0) {
-      return res.status(403).json({ error: 'Not authorized to view this thread' });
+      return res
+        .status(403)
+        .json({ error: "Not authorized to view this thread" });
     }
 
     const parentRow = parentResult.rows[0];
@@ -379,7 +393,7 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       timestamp: parentRow.created_at,
       reactions: parentRow.reactions || {},
       hasReplies: parentRow.has_replies,
-      replyCount: parentRow.reply_count
+      replyCount: parentRow.reply_count,
     };
 
     // 2. Fetch replies with reactions
@@ -408,10 +422,10 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       WHERE m.parent_id = $1
       GROUP BY m.id, u.username
       ORDER BY m.created_at ASC`,
-      [messageId]
+      [messageId],
     );
 
-    const replies = repliesResult.rows.map(row => ({
+    const replies = repliesResult.rows.map((row) => ({
       id: row.id,
       content: row.content,
       userId: row.user_id,
@@ -419,13 +433,13 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       senderName: row.sender_name,
       timestamp: row.created_at,
       reactions: row.reactions || {},
-      parentId: row.parent_id
+      parentId: row.parent_id,
     }));
 
     res.json({ parent, replies });
   } catch (error) {
-    console.error('Error fetching thread messages:', error);
-    res.status(500).json({ error: 'Failed to fetch thread messages' });
+    console.error("Error fetching thread messages:", error);
+    res.status(500).json({ error: "Failed to fetch thread messages" });
   }
 };
 
@@ -486,4 +500,4 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
 //   } finally {
 //     client.release();
 //   }
-// }; 
+// };

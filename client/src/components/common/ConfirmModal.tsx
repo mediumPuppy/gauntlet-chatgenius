@@ -5,7 +5,12 @@ interface ConfirmModalProps {
   action: string;
 }
 
-export function ConfirmModal({ isOpen, onClose, onConfirm, action }: ConfirmModalProps) {
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  action,
+}: ConfirmModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -34,4 +39,4 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, action }: ConfirmModa
       </div>
     </div>
   );
-} 
+}
