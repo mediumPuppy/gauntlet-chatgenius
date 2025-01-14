@@ -245,21 +245,26 @@ export class WebSocketHandler {
 
         // Only update vector stores if we have a valid organizationId
         if (organizationId) {
-          setImmediate(() => {
-            console.log(`[VectorStore] Attempting to add message to stores for channel ${data.channelId} and org ${organizationId}`);
+          setImmediate(async () => {
+            console.log(`[VectorStore] Processing updates for channel ${data.channelId} and org ${organizationId}`);
             
-            Promise.all([
-              vectorStoreService.addDocuments(
+            try {
+              // Update channel vector store first
+              await vectorStoreService.addDocuments(
                 { type: "channel", channelId: data.channelId },
                 [data.content]
-              ),
-              vectorStoreService.addDocuments(
+              );
+              console.log(`[VectorStore] Successfully updated channel store for ${data.channelId}`);
+
+              // Then update organization vector store
+              await vectorStoreService.addDocuments(
                 { type: "organization", organizationId },
                 [data.content]
-              ),
-            ]).catch((error) => {
+              );
+              console.log(`[VectorStore] Successfully updated organization store for ${organizationId}`);
+            } catch (error) {
               console.error("[VectorStore] Error updating vector stores:", error);
-            });
+            }
           });
         } else {
           console.warn(`[VectorStore] No organization found for channel ${data.channelId}`);

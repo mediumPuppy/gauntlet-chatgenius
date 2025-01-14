@@ -24,10 +24,6 @@ export const createAIResponseController = (wsHandler: WebSocketHandler) => {
       try {
         const { mentionedUsername, triggeringMessage, recentMessages } =
           req.body;
-        console.log("AI Response Triggered for:", mentionedUsername);
-        console.log("Triggering Message:", triggeringMessage);
-        console.log("Recent Messages:", recentMessages);
-
         // Check if mentioned user has AI enabled
         const userResult = await pool.query(
           "SELECT id, ai_enabled FROM users WHERE username = $1",
@@ -142,7 +138,7 @@ async function generateAndSendResponse(
 
     // Save to database first
     await pool.query(
-      "INSERT INTO messages (id, content, user_id, channel_id, dm_id, parent_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())",
+      "INSERT INTO messages (id, content, user_id, channel_id, dm_id, parent_id, created_at, bot_message) VALUES ($1, $2, $3, $4, $5, $6, NOW(), true)",
       [
         messageId,
         aiResponse,

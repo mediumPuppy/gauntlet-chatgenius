@@ -117,6 +117,7 @@ export class VectorStoreSyncJob {
         `SELECT content FROM messages 
          WHERE ${job.type === "organization" ? "channel_id IN (SELECT id FROM channels WHERE organization_id = $1)" : "channel_id = $1"}
          AND created_at > $2
+         AND (bot_message IS NULL OR bot_message = false)
          ORDER BY created_at ASC`,
         [job.id, job.lastSync || new Date(0)],
       );

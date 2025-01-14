@@ -70,7 +70,8 @@ CREATE TABLE IF NOT EXISTS messages (
     parent_id UUID REFERENCES messages(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     has_replies BOOLEAN DEFAULT false,
-    reply_count INTEGER DEFAULT 0
+    reply_count INTEGER DEFAULT 0,
+    bot_message BOOLEAN DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS message_reactions (
