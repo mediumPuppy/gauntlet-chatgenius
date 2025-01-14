@@ -58,7 +58,6 @@ export function useWebSocket(channelId: string, isDM = false) {
       // This is a deliberate close, so reset reconnect attempts
       reconnectAttempts.current = 0;
       setShowReconnecting(false);
-      console.log('Closing existing WebSocket connection');
       ws.current.close(1000, 'Reconnecting');
       ws.current = null;
     }
@@ -73,7 +72,6 @@ export function useWebSocket(channelId: string, isDM = false) {
       ws.current.onopen = () => {
         setConnectionState('CONNECTED');
         isConnecting.current = false;
-        console.log("WebSocket connected");
         // Reset reconnect attempts and hide bubble
         reconnectAttempts.current = 0;
         setShowReconnecting(false);

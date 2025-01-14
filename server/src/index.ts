@@ -17,6 +17,7 @@ import searchRoutes from './routes/search';
 import path from 'path';
 import { createAIRouter } from './routes/ai';
 import aiSettingsRoutes from './routes/aiSettings';
+import { VectorStoreSyncJob } from './jobs/vectorStoreSync';
 
 dotenv.config();
 
@@ -26,7 +27,6 @@ const port = process.env.PORT || 3000;
 // Initialize database
 initializeDatabase()
   .then(() => {
-    console.log('Database initialization completed');
   })
   .catch((error) => {
     console.error('Failed to initialize database:', error);
@@ -60,12 +60,13 @@ app.use(express.static(path.join(__dirname, '../../client/dist')));
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/channels', channelRoutes);
-app.use('/api/users', userRoutes, aiSettingsRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/dm', dmRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/ai', aiSettingsRoutes);
 
 // API-specific routes
 app.get('/api', (req: Request, res: Response) => {
@@ -101,22 +102,10 @@ const server = app.listen(port, () => {
   console.log(`HTTP Server is running on port ${port}`);
 });
 
-// Initialize WebSocket server with proper CORS
-console.log('Initializing WebSocket server with config:', {
-  port,
-  path: '/ws',
-  server: !!server
-});
-
 const wss = new WebSocketServer({ 
   server,
   path: '/ws',
   verifyClient: (info, cb) => {
-    console.log('WebSocket verifyClient called:', {
-      url: info.req.url,
-      headers: info.req.headers,
-      origin: info.origin
-    });
     cb(true);
   }
 });
@@ -129,14 +118,12 @@ console.log('WebSocket server state:', {
 });
 
 const wsHandler = new WebSocketHandler(wss);
-console.log('WebSocket handler created:', !!wsHandler);
+
 global.wss = wsHandler;
-console.log('Global WSS set:', !!global.wss);
 
 app.use('/api/ai', createAIRouter(wsHandler));
 
 wss.on('connection', (ws: WebSocketClient) => {
-  console.log('WebSocket connection received');
   wsHandler.handleConnection(ws);
 });
 
@@ -148,7 +135,15 @@ wss.on('listening', () => {
   console.log('WebSocket Server is listening on port', port);
 });
 
+// Initialize vector store sync job
+const vectorStoreSyncJob = new VectorStoreSyncJob(pool);
+vectorStoreSyncJob.start().catch(error => {
+  console.error('Failed to start vector store sync job:', error);
+});
+
+// Add cleanup on server shutdown
 process.on('SIGTERM', () => {
+  vectorStoreSyncJob.stop();
   server.close(() => {
     wss.close(() => {
       pool.end(() => {

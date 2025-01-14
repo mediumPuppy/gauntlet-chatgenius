@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database';
 import { AuthRequest } from '../middleware/auth';
+import { vectorStoreService } from '../services/vectorStore';
 
 interface Message {
   id: string;
@@ -31,12 +32,15 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
     return;
   }
 
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     let effectiveChannelId = channelId;
 
     // If this is a thread reply, get the parent message's channel
     if (parentId) {
-      const parentResult = await pool.query(
+      const parentResult = await client.query(
         'SELECT channel_id FROM messages WHERE id = $1',
         [parentId]
       );
@@ -49,7 +53,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
 
     // Now check channel membership with the correct channel ID
     if (effectiveChannelId) {
-      const channelCheck = await pool.query(
+      const channelCheck = await client.query(
         'SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2',
         [effectiveChannelId, userId]
       );
@@ -58,11 +62,34 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
         res.status(403).json({ error: 'Not authorized to send messages in this channel' });
         return;
       }
+
+      // Get workspace ID for the channel
+      const workspaceResult = await client.query(
+        'SELECT organization_id FROM channels WHERE id = $1',
+        [effectiveChannelId]
+      );
+      const workspaceId = workspaceResult.rows[0].organization_id;
+
+      // Update vector stores asynchronously
+      Promise.all([
+        // Update channel-specific store
+        vectorStoreService.addDocuments(
+          { type: 'channel', channelId },
+          [content]
+        ),
+        // Update workspace-level store
+        vectorStoreService.addDocuments(
+          { type: 'workspace', workspaceId },
+          [content]
+        )
+      ]).catch(error => {
+        console.error('Error updating vector stores:', error);
+      });
     }
 
     if (dmId) {
       // Verify user is part of the DM
-      const dmCheck = await pool.query(
+      const dmCheck = await client.query(
         `SELECT * FROM direct_messages 
          WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
         [dmId, userId]
@@ -74,7 +101,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       }
     } else if (channelId) {
       // Verify user is part of the channel
-      const channelCheck = await pool.query(
+      const channelCheck = await client.query(
         'SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2',
         [channelId, userId]
       );
@@ -89,7 +116,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     const messageId = uuidv4();
-    const message = await pool.query(
+    const result = await client.query(
       `INSERT INTO messages (id, content, user_id, channel_id, dm_id, parent_id, created_at) 
        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
        RETURNING *`,
@@ -97,7 +124,7 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
     );
     // 2. If this is a reply (parentId provided), update parent counters
     if (parentId) {
-      await pool.query(
+      await client.query(
         `UPDATE messages
          SET has_replies = true,
              reply_count = reply_count + 1
@@ -106,25 +133,56 @@ export const createMessage = async (req: AuthRequest, res: Response): Promise<vo
       );
     }
     // Get sender info
-    const sender = await pool.query(
+    const sender = await client.query(
       'SELECT username FROM users WHERE id = $1',
       [userId]
     );
 
     const response = {
-      id: message.rows[0].id,
-      content: message.rows[0].content,
-      userId: message.rows[0].user_id,
-      channelId: message.rows[0].channel_id,
-      dmId: message.rows[0].dm_id,
+      id: result.rows[0].id,
+      content: result.rows[0].content,
+      userId: result.rows[0].user_id,
+      channelId: result.rows[0].channel_id,
+      dmId: result.rows[0].dm_id,
       senderName: sender.rows[0].username,
-      timestamp: message.rows[0].created_at
+      timestamp: result.rows[0].created_at
     };
 
+    // Add message to vector store if it's in a channel (not DM)
+    if (effectiveChannelId) {
+      try {
+        // Add to channel's vector store
+        await vectorStoreService.addDocuments(
+          { type: 'channel', channelId: effectiveChannelId },
+          [content]
+        );
+
+        // Get workspace ID and add to workspace's vector store
+        const workspaceResult = await client.query(
+          'SELECT organization_id FROM channels WHERE id = $1',
+          [effectiveChannelId]
+        );
+        
+        if (workspaceResult.rows.length > 0) {
+          await vectorStoreService.addDocuments(
+            { type: 'workspace', workspaceId: workspaceResult.rows[0].organization_id },
+            [content]
+          );
+        }
+      } catch (vectorError) {
+        console.error('Error adding message to vector store:', vectorError);
+        // Don't fail the message creation if vector store update fails
+      }
+    }
+
+    await client.query('COMMIT');
     res.status(201).json(response);
   } catch (error) {
-    console.error('Failed to create message:', error);
+    await client.query('ROLLBACK');
+    console.error('Error creating message:', error);
     res.status(500).json({ error: 'Failed to create message' });
+  } finally {
+    client.release();
   }
 };
 

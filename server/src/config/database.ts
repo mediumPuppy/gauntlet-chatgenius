@@ -57,18 +57,6 @@ export const config: PoolConfig = process.env.DATABASE_URL
       statement_timeout: 10000,
     };
 
-// Add some debugging
-console.log('Database config:', {
-  connectionString: process.env.DATABASE_URL ? '[REDACTED]' : undefined,
-  host: config.host,
-  database: config.database,
-  ssl: config.ssl,
-  timeouts: {
-    connection: config.connectionTimeoutMillis,
-    statement: config.statement_timeout
-  }
-});
-
 const pool = new Pool(config);
 
 pool.on('error', (err) => {
@@ -79,7 +67,6 @@ pool.on('error', (err) => {
 export async function testConnection() {
   try {
     const client = await pool.connect();
-    console.log('Database connection successful');
     client.release();
     return true;
   } catch (error) {

@@ -2,7 +2,7 @@ import { API_URL } from './config';
 
 export const toggleAIEnabled = async (token: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_URL}/users/ai-toggle`, {
+    const response = await fetch(`${API_URL}/ai/ai-toggle`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -24,7 +24,7 @@ export const toggleAIEnabled = async (token: string): Promise<boolean> => {
 
 export const getAIEnabled = async (token: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_URL}/users/ai-status`, {
+    const response = await fetch(`${API_URL}/ai/ai-status`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

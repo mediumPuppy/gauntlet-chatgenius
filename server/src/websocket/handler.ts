@@ -44,10 +44,8 @@ export class WebSocketHandler {
     ws: WebSocketClient,
     token: string
   ): Promise<boolean> {
-    console.log('Attempting WebSocket authentication');
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-      console.log('WebSocket authentication successful for user:', decoded.id);
       ws.userId = decoded.id;
       ws.isAlive = true;
 
@@ -169,8 +167,6 @@ export class WebSocketHandler {
         ws.send(JSON.stringify({ type: "error", error: "User not found" }));
         return;
       }
-
-      console.log("Handling chat message:", data);
 
       const message = {
         id: data.id,
@@ -362,10 +358,8 @@ export class WebSocketHandler {
       };
 
       if (channel_id) {
-        console.log("Broadcasting to channel:", channel_id);
         await this.broadcastToChannel(channel_id, reactionMessage);
       } else if (dm_id) {
-        console.log("Broadcasting to DM:", dm_id);
         await this.broadcastToDM(dm_id, reactionMessage);
       }
     } catch (error) {
@@ -377,7 +371,6 @@ export class WebSocketHandler {
   }
 
   public handleConnection(ws: WebSocketClient) {
-    console.log('New WebSocket connection attempt');
     ws.isAlive = true;
     
     ws.on('pong', () => {

@@ -83,7 +83,6 @@ router.post('/signup', async (req: Request, res: Response): Promise<void> => {
   }
 });
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
-  console.log('Login request received:', { body: req.body });
   try {
     const { email, password } = req.body;
     
