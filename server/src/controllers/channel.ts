@@ -21,7 +21,7 @@ export const channelController = {
 
       const channel = await channelQueries.createChannel(name, organization_id);
       await channelQueries.addMember(channel.id, userId);
-
+      console.log(channel.id,'jl2');
       // Initialize vector store with consistent config format
       const config = {
         type: "channel" as const,
@@ -32,6 +32,7 @@ export const channelController = {
         const exists = await vectorStoreService.namespaceExists(config);
         if (!exists) {
           await vectorStoreService.createStore(config);
+          console.log(`[VectorStore] Successfully created vector store for channel ${channel.id}`);
         }
       } catch (vectorError) {
         console.error("Error initializing channel vector store:", vectorError);

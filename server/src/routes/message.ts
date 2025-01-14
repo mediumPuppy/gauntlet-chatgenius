@@ -1,6 +1,5 @@
 import express, { RequestHandler } from "express";
 import {
-  createMessage,
   getMessages,
   getThreadMessages,
 } from "../controllers/message";
@@ -18,7 +17,6 @@ router.get(
 
 // Main message routes
 router.get("/", authenticateToken, getMessages as RequestHandler);
-router.post("/", authenticateToken, createMessage as RequestHandler);
 
 router.post("/:messageId/reactions", authenticateToken, async (req, res) => {
   await addReaction(req, res);

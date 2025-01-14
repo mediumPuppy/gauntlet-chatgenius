@@ -59,19 +59,30 @@ export class VectorStoreService {
           await this.getStoreNamespace(config),
         ],
       );
+      
+      const namespace = await this.getStoreNamespace(config);
+      console.log(`[VectorStore] Attempting to create Pinecone namespace: ${namespace}`);
 
       // Initialize Pinecone namespace
-      const vectorStore = await PineconeStore.fromExistingIndex(
-        this.embeddings,
-        {
-          pineconeIndex: this.index,
-          namespace: await this.getStoreNamespace(config),
-        },
-      );
+      try {
+        const vectorStore = await PineconeStore.fromExistingIndex(
+          this.embeddings,
+          {
+            pineconeIndex: this.index,
+            namespace: namespace,
+          },
+        );
+        console.log(`[VectorStore] Successfully initialized Pinecone namespace: ${namespace}`);
+      } catch (error) {
+        console.error(`[VectorStore] Failed to initialize Pinecone namespace: ${namespace}`, error);
+        throw error;
+      }
 
       await client.query("COMMIT");
+      console.log(`[VectorStore] Successfully committed vector store creation for ${config.type} ${config.organizationId || config.channelId}`);
     } catch (error) {
       await client.query("ROLLBACK");
+      console.error(`[VectorStore] Error creating vector store:`, error);
       throw error;
     } finally {
       client.release();

@@ -12,6 +12,7 @@ import { messageQueries } from "../models/message";
 import { channelQueries } from "../models/channel";
 import { userQueries } from "../models/user";
 import pool from "../config/database";
+import { vectorStoreService } from "../services/vectorStore";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const clients = new Map<string, Set<WebSocketClient>>();
@@ -209,9 +210,12 @@ export class WebSocketHandler {
           ...message,
         });
       } else {
-        // Verify user is part of the channel
+        // Verify user is part of the channel and get organization_id
         const channelCheck = await pool.query(
-          "SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2",
+          `SELECT cm.*, c.organization_id 
+           FROM channel_members cm 
+           JOIN channels c ON cm.channel_id = c.id 
+           WHERE cm.channel_id = $1 AND cm.user_id = $2`,
           [data.channelId, ws.userId],
         );
 
@@ -225,29 +229,45 @@ export class WebSocketHandler {
           return;
         }
 
-        // Save channel message with parentId
+        const organizationId = channelCheck.rows[0].organization_id;
+        console.log(organizationId,'jl');
+        // Save message and broadcast first
         await pool.query(
           "INSERT INTO messages (id, content, user_id, channel_id, parent_id, created_at) VALUES ($1, $2, $3, $4, $5::uuid, NOW())",
-          [
-            data.id,
-            data.content,
-            ws.userId,
-            data.channelId,
-            data.parentId || null,
-          ],
+          [data.id, data.content, ws.userId, data.channelId, data.parentId || null],
         );
 
-        // Broadcast to channel members
+        // Broadcast to channel members immediately
         await this.broadcastToChannel(data.channelId, {
           type: "message",
           ...message,
         });
+
+        // Only update vector stores if we have a valid organizationId
+        if (organizationId) {
+          setImmediate(() => {
+            console.log(`[VectorStore] Attempting to add message to stores for channel ${data.channelId} and org ${organizationId}`);
+            
+            Promise.all([
+              vectorStoreService.addDocuments(
+                { type: "channel", channelId: data.channelId },
+                [data.content]
+              ),
+              vectorStoreService.addDocuments(
+                { type: "organization", organizationId },
+                [data.content]
+              ),
+            ]).catch((error) => {
+              console.error("[VectorStore] Error updating vector stores:", error);
+            });
+          });
+        } else {
+          console.warn(`[VectorStore] No organization found for channel ${data.channelId}`);
+        }
       }
     } catch (error) {
       console.error("Error handling chat message:", error);
-      ws.send(
-        JSON.stringify({ type: "error", error: "Failed to process message" }),
-      );
+      ws.send(JSON.stringify({ type: "error", error: "Failed to process message" }));
     }
   }
 

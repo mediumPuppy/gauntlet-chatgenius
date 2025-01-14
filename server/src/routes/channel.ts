@@ -1,6 +1,6 @@
 import { Router, RequestHandler } from "express";
 import { channelController } from "../controllers/channel";
-import { createMessage, getMessages } from "../controllers/message";
+import { getMessages } from "../controllers/message";
 import { authenticateToken } from "../middleware/auth";
 import { validateRequest } from "../middleware/validation";
 
@@ -15,6 +15,7 @@ router.post(
   validateRequest({
     body: {
       name: { type: "string", required: true },
+      organization_id: { type: "string", required: true },
     },
   }),
   channelController.createChannel as RequestHandler,
@@ -32,16 +33,7 @@ router.get("/:id", channelController.getChannel as RequestHandler);
 // Join a channel
 router.post("/:id/join", channelController.joinChannel as RequestHandler);
 
-// Message routes
+// Message routes - only keep the GET route
 router.get("/:channelId/messages", getMessages as RequestHandler);
-router.post(
-  "/:channelId/messages",
-  validateRequest({
-    body: {
-      content: { type: "string", required: true },
-    },
-  }),
-  createMessage as RequestHandler,
-);
 
 export default router;

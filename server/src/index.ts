@@ -122,6 +122,10 @@ const wss = new WebSocketServer({
   },
 });
 
+wss.on("listening", () => {
+  console.log("WebSocket Server is listening on port", port);
+});
+
 const wsHandler = new WebSocketHandler(wss);
 
 global.wss = wsHandler;

@@ -76,12 +76,10 @@ router.post(
         const exists = await vectorStoreService.namespaceExists(config);
         if (!exists) {
           await vectorStoreService.createStore(config);
+          console.log(`[VectorStore] Successfully created vector store for organization ${orgResult.rows[0].id}`);
         }
       } catch (vectorError) {
-        console.error(
-          "Error initializing organization vector store:",
-          vectorError,
-        );
+        console.error("Error initializing organization vector store:", vectorError);
         // Don't fail organization creation if vector store initialization fails
       }
 

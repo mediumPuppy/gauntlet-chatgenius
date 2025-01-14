@@ -63,7 +63,7 @@ export default function ChannelDialog({ isOpen, onClose }: ChannelDialogProps) {
           organization_id: currentOrganization.id,
         });
         await refreshChannels();
-        navigate(`/chat/${channel.id}`);
+        navigate(`/chat/channel/${channel.id}`);
         onClose();
       }
     } catch (error) {
@@ -78,7 +78,7 @@ export default function ChannelDialog({ isOpen, onClose }: ChannelDialogProps) {
       setLoading(true);
       await joinChannel(token!, channelId);
       await refreshChannels();
-      navigate(`/chat/${channelId}`);
+      navigate(`/chat/channel/${channelId}`);
       onClose();
     } catch (error) {
       console.error("Failed to join channel:", error);
