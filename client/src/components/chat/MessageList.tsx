@@ -13,10 +13,12 @@ const Message = memo(
     message,
     onThreadClick,
     isHighlighted,
+    isThreadView = false,
   }: {
     message: MessageType;
     onThreadClick: (threadId: string) => void;
     isHighlighted?: boolean;
+    isThreadView?: boolean;
   }) => {
     // const navigate = useNavigate();
     const { token, user } = useAuth();
@@ -164,20 +166,22 @@ const Message = memo(
             </span>
           </div>
 
-          {message.hasReplies ? (
-            <button
-              onClick={() => onThreadClick(message.id)}
-              className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline"
-            >
-              Thread ({message.replyCount})
-            </button>
-          ) : (
-            <button
-              onClick={() => onThreadClick(message.id)}
-              className="hidden group-hover:inline-block text-sm text-primary-600 hover:underline"
-            >
-              Reply
-            </button>
+          {!isThreadView && (
+            message.hasReplies ? (
+              <button
+                onClick={() => onThreadClick(message.id)}
+                className="text-sm text-primary-600 hover:underline md:hidden md:group-hover:inline-block"
+              >
+                Thread ({message.replyCount})
+              </button>
+            ) : (
+              <button
+                onClick={() => onThreadClick(message.id)}
+                className="text-sm text-primary-600 hover:underline md:hidden md:group-hover:inline-block"
+              >
+                Reply
+              </button>
+            )
           )}
         </div>
         {renderContent(message.content)}
@@ -384,6 +388,7 @@ export function MessageList({
               message={message}
               onThreadClick={onThreadClick}
               isHighlighted={message.id === highlightedId}
+              isThreadView={message.hasReplies}
             />
           ))}
           <div className="h-6">

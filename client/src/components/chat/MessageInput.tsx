@@ -225,16 +225,19 @@ export function MessageInput({
   };
 
   const getPlaceholder = () => {
+    let text = "";
     if (placeholder) {
-      return placeholder;
+      text = placeholder;
+    } else if (dmId) {
+      text = "Type your message...";
+    } else if (currentChannel) {
+      text = `Message #${currentChannel.name}`;
+    } else {
+      text = "Select a conversation to start messaging";
     }
-    if (dmId) {
-      return "Type your message...";
-    }
-    if (currentChannel) {
-      return `Message #${currentChannel.name}`;
-    }
-    return "Select a conversation to start messaging";
+    
+    // Truncate with ellipsis if too long
+    return text.length > 40 ? text.substring(0, 37) + "..." : text;
   };
 
   const isDisabled = !currentChannel && !dmId && !isThread;
@@ -308,20 +311,44 @@ export function MessageInput({
   }, [newMessage, mentionState.startIndex, token, currentOrganization]);
 
   return (
-    <div className="h-auto min-h-[5rem] max-h-[12rem] border-t p-4">
-      <form onSubmit={handleSendMessage} className="h-full">
+    <div className="h-auto min-h-[5rem] max-h-[16rem] border-t p-4 flex flex-col justify-end">
+      <form onSubmit={handleSendMessage} className="flex flex-col gap-2">
         {filePreview && (
-          <div className="mb-2 relative inline-block">
-            {filePreview.type === "image" ? (
-              <img
-                src={filePreview.previewUrl}
-                alt="Preview"
-                className="max-w-[300px] max-h-[200px] rounded-lg object-contain"
-              />
-            ) : (
-              <div className="p-3 bg-gray-100 rounded-lg flex items-center">
+          <div className="overflow-y-auto max-h-[240px] pt-2">
+            <div className="relative inline-block">
+              {filePreview.type === "image" ? (
+                <img
+                  src={filePreview.previewUrl}
+                  alt="Preview"
+                  className="max-w-[300px] max-h-[200px] rounded-lg object-contain"
+                />
+              ) : (
+                <div className="p-3 bg-gray-100 rounded-lg flex items-center">
+                  <svg
+                    className="w-6 h-6 text-gray-500 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                    />
+                  </svg>
+                  <span className="text-sm truncate max-w-[200px]">
+                    {filePreview.file.name}
+                  </span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={removeFilePreview}
+                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+              >
                 <svg
-                  className="w-6 h-6 text-gray-500 mr-2"
+                  className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -330,37 +357,15 @@ export function MessageInput({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                    d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
-                <span className="text-sm truncate max-w-[200px]">
-                  {filePreview.file.name}
-                </span>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={removeFilePreview}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="bg-gray-50 rounded-lg flex h-full">
+        <div className="bg-gray-50 rounded-lg flex sticky bottom-0">
           <input
             type="file"
             ref={fileInputRef}
@@ -411,10 +416,11 @@ export function MessageInput({
               }}
               placeholder={getPlaceholder()}
               disabled={isDisabled || isUploading}
-              className="flex-1 bg-transparent p-3 resize-none focus:outline-none disabled:cursor-not-allowed w-full h-full leading-normal"
+              className="flex-1 bg-transparent p-3 resize-none focus:outline-none disabled:cursor-not-allowed w-full h-full leading-normal text-[15px] placeholder:text-[15px] placeholder:truncate"
               style={{
                 color: "inherit",
                 lineHeight: "1.5rem",
+                whiteSpace: "pre-wrap", // Allow wrapping for actual content
               }}
               rows={1}
               ref={textareaRef}
@@ -464,9 +470,7 @@ export function MessageInput({
 
         <MentionDialog
           isOpen={mentionState.isOpen}
-          onClose={() =>
-            setMentionState((prev) => ({ ...prev, isOpen: false }))
-          }
+          onClose={() => setMentionState((prev) => ({ ...prev, isOpen: false }))}
           onSelect={handleMentionSelect}
           searchQuery={mentionState.query}
           position={mentionState.position}

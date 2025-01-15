@@ -98,7 +98,11 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
 
       <div className="flex-1 overflow-y-auto p-4">
         {parent && (
-          <MessageComponent message={parent} onThreadClick={() => {}} />
+          <MessageComponent 
+            message={parent} 
+            onThreadClick={() => {}} 
+            isThreadView={true}
+          />
         )}
 
         <div className="space-y-4">
@@ -107,6 +111,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
               key={reply.id}
               message={reply}
               onThreadClick={() => {}}
+              isThreadView={true}
             />
           ))}
         </div>

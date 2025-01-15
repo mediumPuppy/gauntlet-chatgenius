@@ -330,6 +330,26 @@ const ChatPageContent: React.FC = memo(() => {
               )}
             </div>
           </div>
+
+          {/* Thread Panel with Overlay */}
+          {activeThread && (
+            <>
+              <div 
+                className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
+                onClick={handleCloseThread}
+              />
+              <div className={`
+                fixed right-0 top-16 bottom-0 w-full sm:w-96 bg-white z-50
+                lg:relative lg:top-0 lg:w-96 lg:z-0
+                shadow-lg overflow-y-auto
+              `}>
+                <ThreadPanel 
+                  messageId={activeThread} 
+                  onClose={handleCloseThread}
+                />
+              </div>
+            </>
+          )}
         </main>
       </div>
 
