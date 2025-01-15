@@ -336,7 +336,11 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
             <button
               role="tab"
               aria-selected={!isBotMode}
-              onClick={() => setIsBotMode(false)}
+              onClick={() => {
+                setIsBotMode(false);
+                setQuery(""); // Clear the search query
+                setResults([]); // Clear the search results
+              }}
               className={`${styles.modeButton} ${!isBotMode ? styles.modeButtonActive : styles.modeButtonInactive}`}
             >
               <span className="sr-only">Switch to </span>
@@ -345,7 +349,11 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
             <button
               role="tab"
               aria-selected={isBotMode}
-              onClick={() => setIsBotMode(true)}
+              onClick={() => {
+                setIsBotMode(true);
+                setQuery(""); // Clear the search query
+                setResults([]); // Clear the search results
+              }}
               className={`${styles.modeButton} ${isBotMode ? styles.modeButtonActive : styles.modeButtonInactive}`}
             >
               <span className="sr-only">Switch to </span>
