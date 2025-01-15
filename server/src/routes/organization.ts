@@ -40,6 +40,7 @@ router.post(
   authenticateToken,
   async (req: Request, res: Response): Promise<void> => {
     const client = await pool.connect();
+    let orgResult;
     try {
       const { name } = req.body;
       const userId = req.user?.id;
@@ -52,7 +53,7 @@ router.post(
       await client.query("BEGIN");
 
       // Create organization
-      const orgResult = await client.query(
+      orgResult = await client.query(
         `INSERT INTO organizations (name, created_by, created_at)
          VALUES ($1, $2, NOW())
          RETURNING *`,
@@ -66,7 +67,9 @@ router.post(
         [orgResult.rows[0].id, userId],
       );
 
-      // Initialize vector store with consistent config format
+      await client.query("COMMIT");
+
+      // Initialize vector store AFTER organization is committed
       const config = {
         type: "organization" as const,
         organizationId: orgResult.rows[0].id,
@@ -80,10 +83,8 @@ router.post(
         }
       } catch (vectorError) {
         console.error("Error initializing organization vector store:", vectorError);
-        // Don't fail organization creation if vector store initialization fails
       }
 
-      await client.query("COMMIT");
       res.status(201).json(orgResult.rows[0]);
     } catch (error) {
       await client.query("ROLLBACK");
