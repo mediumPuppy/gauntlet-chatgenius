@@ -28,3 +28,37 @@ export const triggerAIResponse = async (
     console.error("Error triggering AI response:", error);
   }
 };
+
+interface BotQueryParams {
+  content: string;
+  channelId?: string;
+  workspaceId?: string;
+}
+
+export const handleBotQuery = async (
+  token: string,
+  params: BotQueryParams
+) => {
+  try {
+    console.log('Sending bot query:', params);
+
+    const response = await fetch(`${API_URL}/ai/query`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to process bot query");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Error processing bot query:", error);
+    throw error;
+  }
+};
