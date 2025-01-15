@@ -314,7 +314,7 @@ export function MessageInput({
     <div className="h-auto min-h-[5rem] max-h-[16rem] border-t p-4 flex flex-col justify-end">
       <form onSubmit={handleSendMessage} className="flex flex-col gap-2">
         {filePreview && (
-          <div className="overflow-y-auto max-h-[240px] pt-2">
+          <div className="overflow-y-auto max-h-[240px] pt-4">
             <div className="relative inline-block">
               {filePreview.type === "image" ? (
                 <img
@@ -345,7 +345,7 @@ export function MessageInput({
               <button
                 type="button"
                 onClick={removeFilePreview}
-                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                className="absolute -top-4 -right-4 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-sm"
               >
                 <svg
                   className="w-4 h-4"
