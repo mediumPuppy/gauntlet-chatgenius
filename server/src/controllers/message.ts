@@ -167,19 +167,27 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       JOIN users u ON m.user_id = u.id
       LEFT JOIN reaction_groups rg ON m.id = rg.message_id
       WHERE m.id = $1
-      AND EXISTS (
-        SELECT 1 FROM channel_members cm 
-        WHERE cm.channel_id = m.channel_id 
-        AND cm.user_id = $2
+      AND (
+        -- Check channel permission if it's a channel message
+        (m.channel_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM channel_members cm 
+          WHERE cm.channel_id = m.channel_id 
+          AND cm.user_id = $2
+        ))
+        OR 
+        -- Check DM permission if it's a DM message
+        (m.dm_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM direct_messages dm
+          WHERE dm.id = m.dm_id
+          AND (dm.user1_id = $2 OR dm.user2_id = $2)
+        ))
       )
       GROUP BY m.id, u.username`,
-      [messageId, userId],
+      [messageId, userId]
     );
 
     if (parentResult.rows.length === 0) {
-      return res
-        .status(403)
-        .json({ error: "Not authorized to view this thread" });
+      return res.status(403).json({ error: "Not authorized to view this thread" });
     }
 
     const parentRow = parentResult.rows[0];
@@ -188,6 +196,7 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       content: parentRow.content,
       userId: parentRow.user_id,
       channelId: parentRow.channel_id,
+      dmId: parentRow.dm_id,
       senderName: parentRow.sender_name,
       timestamp: parentRow.created_at,
       reactions: parentRow.reactions || {},
@@ -221,7 +230,7 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       WHERE m.parent_id = $1
       GROUP BY m.id, u.username
       ORDER BY m.created_at ASC`,
-      [messageId],
+      [messageId]
     );
 
     const replies = repliesResult.rows.map((row) => ({
@@ -229,6 +238,7 @@ export const getThreadMessages = async (req: AuthRequest, res: Response) => {
       content: row.content,
       userId: row.user_id,
       channelId: row.channel_id,
+      dmId: row.dm_id,
       senderName: row.sender_name,
       timestamp: row.created_at,
       reactions: row.reactions || {},

@@ -92,7 +92,8 @@ export function MessageProvider({
         id: tempId,
         content,
         userId: user.id,
-        channelId,
+        channelId: isDM ? undefined : channelId,
+        dmId: isDM ? channelId : undefined,
         senderName: user.username,
         timestamp: Date.now(),
         parentId,
@@ -199,8 +200,14 @@ export function MessageProvider({
     const handleMessage = (event: CustomEvent) => {
       const data = event.detail;
 
-      // Only process messages for current channel/DM
-      if (data.channelId !== channelId) return;
+      // For thread messages, we need to check both channelId and parentId
+      // For DMs, we need to check both channelId/dmId
+      const isRelevantMessage = isDM
+        ? data.channelId === channelId || data.dmId === channelId
+        : data.channelId === channelId;
+
+      // Skip if message is not relevant to current context
+      if (!isRelevantMessage) return;
 
       switch (data.type) {
         case "message": {
@@ -225,7 +232,8 @@ export function MessageProvider({
             id: messageId,
             content: data.content,
             userId: data.userId || data.user_id || data.userid || data.senderId,
-            channelId: data.channelId || data.channel_id || channelId,
+            channelId: isDM ? undefined : (data.channelId || data.channel_id || channelId),
+            dmId: isDM ? (data.channelId || data.channel_id || channelId) : undefined,
             senderName:
               data.senderName ||
               data.sender_name ||
@@ -235,9 +243,9 @@ export function MessageProvider({
               typeof data.timestamp === "string"
                 ? new Date(data.timestamp).getTime()
                 : data.timestamp || Date.now(),
-            parentId: data.parentId, // Add parentId
-            hasReplies: data.hasReplies, // Add hasReplies
-            replyCount: data.replyCount, // Add replyCount
+            parentId: data.parentId,
+            hasReplies: data.hasReplies,
+            replyCount: data.replyCount,
           };
 
           // Add to processed set
@@ -349,7 +357,7 @@ export function MessageProvider({
         WS_MESSAGE_EVENT,
         handleMessage as EventListener,
       );
-  }, [channelId, eventEmitter, ws]);
+  }, [channelId, eventEmitter, ws, isDM]);
 
   return (
     <MessageContext.Provider

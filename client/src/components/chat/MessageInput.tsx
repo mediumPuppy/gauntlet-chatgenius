@@ -96,7 +96,7 @@ export function MessageInput({
         messageContent = `[📎 ${file.name}](${fileUrl})`;
       }
 
-      sendMessage(messageContent);
+      sendMessage(messageContent, parentId);
       setFilePreview(null);
     } catch (error) {
       console.error("Upload error:", error);

@@ -18,6 +18,11 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
   const [replies, setReplies] = useState<MessageType[]>([]);
   const { token } = useAuth();
   const { messages } = useMessages();
+  // Track the context of where this thread lives
+  const [threadContext, setThreadContext] = useState<{
+    isDM: boolean;
+    contextId: string;
+  } | null>(null);
 
   // Initial fetch of thread data
   useEffect(() => {
@@ -36,6 +41,12 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
         const data = await res.json();
         setParent(data.parent);
         setReplies(data.replies);
+        
+        // Store the thread context
+        setThreadContext({
+          isDM: !!data.parent.dmId,
+          contextId: data.parent.dmId || data.parent.channelId
+        });
       } catch (error) {
         console.error("Error fetching thread:", error);
       }
@@ -45,30 +56,38 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
     }
   }, [messageId, token]);
 
-  // Update replies when new messages or reactions come in
+  // Update replies when new messages come in
   useEffect(() => {
+    if (!threadContext) return;
+
+    // Only process messages that match our thread's context
+    const relevantMessages = messages.filter(msg => 
+      threadContext.isDM 
+        ? msg.dmId === threadContext.contextId
+        : msg.channelId === threadContext.contextId
+    );
+
     // Get all messages that belong to this thread
-    const threadMessages = messages.filter((msg) => msg.parentId === messageId);
+    const threadMessages = relevantMessages.filter(
+      msg => msg.parentId === messageId
+    );
 
     // Merge existing replies with new messages
-    setReplies((prevReplies) => {
-      const existingIds = new Set(prevReplies.map((reply) => reply.id));
+    setReplies(prevReplies => {
+      const existingIds = new Set(prevReplies.map(reply => reply.id));
       const newReplies = threadMessages.filter(
-        (msg) => !existingIds.has(msg.id),
+        msg => !existingIds.has(msg.id)
       );
 
-      if (newReplies.length > 0) {
-        return [...prevReplies, ...newReplies].sort((a, b) => {
-          const timeA = new Date(a.timestamp).getTime();
-          const timeB = new Date(b.timestamp).getTime();
-          return timeA - timeB;
-        });
-      }
-      return prevReplies;
+      if (newReplies.length === 0) return prevReplies;
+
+      return [...prevReplies, ...newReplies].sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
     });
 
-    // Update parent message if it exists in the messages array
-    const updatedParent = messages.find((msg) => msg.id === messageId);
+    // Update parent message if it exists in the relevant messages
+    const updatedParent = relevantMessages.find(msg => msg.id === messageId);
     if (updatedParent && parent) {
       // Only update specific fields to avoid infinite loop
       const hasChanges =
@@ -77,7 +96,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
         updatedParent.hasReplies !== parent.hasReplies;
 
       if (hasChanges) {
-        setParent((current) => ({
+        setParent(current => ({
           ...current!,
           reactions: updatedParent.reactions || {},
           replyCount: updatedParent.replyCount,
@@ -85,7 +104,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
         }));
       }
     }
-  }, [messages, messageId]); // Remove parent from dependencies
+  }, [messages, messageId, threadContext, parent]);
 
   return (
     <div className="w-96 border-l border-gray-200 h-full flex flex-col bg-white">
@@ -118,7 +137,10 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
       </div>
 
       {parent && (
-        <MessageProvider channelId={parent.channelId || ""} isDM={false}>
+        <MessageProvider 
+          channelId={parent.channelId || parent.dmId || ""} 
+          isDM={!!parent.dmId}
+        >
           <div className="p-4 border-t border-gray-200">
             <MessageInput
               parentId={messageId}

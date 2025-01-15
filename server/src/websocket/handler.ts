@@ -200,8 +200,8 @@ export class WebSocketHandler {
 
         // Save DM message
         await pool.query(
-          "INSERT INTO messages (id, content, user_id, dm_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
-          [data.id, data.content, ws.userId, data.channelId],
+          "INSERT INTO messages (id, content, user_id, dm_id, parent_id, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+          [data.id, data.content, ws.userId, data.channelId, data.parentId],
         );
 
         // Broadcast to DM participants
