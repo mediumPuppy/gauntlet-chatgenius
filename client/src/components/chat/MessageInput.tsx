@@ -283,23 +283,28 @@ export function MessageInput({
     const query = match[1];
     setMentionState((prev) => ({ ...prev, query }));
 
-    // Search users when query changes
-    const searchTimeout = setTimeout(async () => {
-      if (!currentOrganization?.id) return;
-      try {
-        const results = await searchUsers(
-          token!,
-          query,
-          currentOrganization.id,
-        );
-        setUsers(results);
-        setSelectedIndex(0);
-      } catch (error) {
-        console.error("Failed to search users:", error);
-      }
-    }, 200);
+    // Only search if there's actually a query (not just @)
+    if (query.length > 0) {
+      const searchTimeout = setTimeout(async () => {
+        if (!currentOrganization?.id) return;
+        try {
+          const results = await searchUsers(
+            token!,
+            query,
+            currentOrganization.id,
+          );
+          setUsers(results);
+          setSelectedIndex(0);
+        } catch (error) {
+          console.error("Failed to search users:", error);
+        }
+      }, 200);
 
-    return () => clearTimeout(searchTimeout);
+      return () => clearTimeout(searchTimeout);
+    } else {
+      // Clear users when there's no query
+      setUsers([]);
+    }
   }, [newMessage, mentionState.startIndex, token, currentOrganization]);
 
   return (

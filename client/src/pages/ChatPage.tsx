@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import { MessageList } from "../components/chat/MessageList";
 import { MessageInput } from "../components/chat/MessageInput";
 import { ChannelList } from "../components/chat/ChannelList";
-import { OrganizationSwitcher } from "../components/organization/OrganizationSwitcher";
 import { useAuth } from "../contexts/AuthContext";
 import { useChannels } from "../contexts/ChannelContext";
 import { MessageProvider } from "../contexts/MessageContext";
@@ -114,7 +113,7 @@ const ChatPageContent: React.FC = memo(() => {
         </div>
       );
     }
-    return "Chat";
+    return "ChatGenius";
   }, [currentDM, currentChannel, isUserOnline]);
 
   const shouldShowWelcome = !dmId && !currentChannel;
@@ -141,33 +140,31 @@ const ChatPageContent: React.FC = memo(() => {
   return (
     <div className="flex h-screen relative">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-primary-600 flex items-center px-4 z-50">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-primary-600 flex items-center px-1 sm:px-2 md:px-4 z-50">
+        {/* Menu Button - More compact on mobile */}
         <button
           onClick={toggleSidebar}
-          className="lg:hidden text-white mr-4 hover:text-primary-200 transition-colors"
+          className="lg:hidden p-1.5 sm:p-2 -ml-0.5 sm:-ml-1 mr-1 sm:mr-2 text-white hover:text-primary-200 transition-colors rounded-full hover:bg-white/10 active:bg-white/20"
+          aria-label="Toggle menu"
         >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M4 12h16M4 18h16"
-            />
+          <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <OrganizationSwitcher />
-        <div className="flex-1 text-white font-medium ml-4">{renderHeader}</div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center mr-4">
+
+        {/* Channel/DM Header - Smaller text on mobile */}
+        <div className="flex-1 min-w-0 text-white font-medium ml-2 sm:ml-3 md:ml-4 text-sm sm:text-base">
+          <div className="truncate">{renderHeader}</div>
+        </div>
+
+        {/* Action Buttons - Tighter spacing on mobile */}
+        <div className="flex items-center gap-0.5 sm:gap-1 md:gap-4">
+          {/* AI Toggle - More compact on mobile */}
+          <div className="flex items-center">
             <button
               onClick={handleAIToggle}
               disabled={isTogglingAI}
-              className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
                 aiEnabled ? "bg-primary-500" : "bg-gray-400"
               }`}
               role="switch"
@@ -175,12 +172,39 @@ const ChatPageContent: React.FC = memo(() => {
             >
               <span
                 className={`${
-                  aiEnabled ? "translate-x-6" : "translate-x-1"
-                } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
-              />
+                  aiEnabled ? "translate-x-5" : "translate-x-0"
+                } pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+              >
+                <span
+                  className={`${
+                    aiEnabled ? "opacity-0 duration-100 ease-out" : "opacity-100 duration-200 ease-in"
+                  } absolute inset-0 flex h-full w-full items-center justify-center transition-opacity`}
+                  aria-hidden="true"
+                >
+                  <svg className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 12 12">
+                    <path
+                      d="M4 8l2-2m0 0l2-2M6 6L4 4m2 2l2 2"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span
+                  className={`${
+                    aiEnabled ? "opacity-100 duration-200 ease-in" : "opacity-0 duration-100 ease-out"
+                  } absolute inset-0 flex h-full w-full items-center justify-center transition-opacity`}
+                  aria-hidden="true"
+                >
+                  <svg className="h-3 w-3 text-primary-600" fill="currentColor" viewBox="0 0 12 12">
+                    <path d="M3.707 5.293a1 1 0 00-1.414 1.414l1.414-1.414zM5 8l-.707.707a1 1 0 001.414 0L5 8zm4.707-3.293a1 1 0 00-1.414-1.414l1.414 1.414zm-7.414 2l2 2 1.414-1.414-2-2-1.414 1.414zm3.414 2l4-4-1.414-1.414-4 4 1.414 1.414z" />
+                  </svg>
+                </span>
+              </span>
             </button>
             <Tooltip content="When enabled, AI will respond as you when mentioned or DMed">
-              <button className="ml-2 text-white hover:text-teal-200 transition-colors">
+              <button className="ml-2 p-2 text-white hover:text-teal-200 transition-colors rounded-full hover:bg-white/10">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5"
@@ -198,10 +222,12 @@ const ChatPageContent: React.FC = memo(() => {
               </button>
             </Tooltip>
           </div>
+
+          {/* Search Button - Enhanced touch target */}
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="text-white hover:text-teal-200 transition-colors mr-2"
-            title="Search Messages"
+            className="p-2 text-white hover:text-teal-200 transition-colors rounded-full hover:bg-white/10"
+            aria-label="Search Messages"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -218,77 +244,94 @@ const ChatPageContent: React.FC = memo(() => {
               />
             </svg>
           </button>
+
+          {/* Logout Button - More compact on mobile */}
           <button
             onClick={handleLogout}
-            className="text-white hover:text-teal-200 transition-colors text-sm px-3 py-1 rounded border border-white/20 hover:border-teal-200"
+            className="hidden md:block text-white hover:text-teal-200 transition-colors text-sm px-3 py-1 rounded border border-white/20 hover:border-teal-200"
           >
             Logout
+          </button>
+          <button
+            onClick={handleLogout}
+            className="md:hidden p-2 text-white hover:text-teal-200 transition-colors rounded-full hover:bg-white/10"
+            aria-label="Logout"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
           </button>
         </div>
       </header>
 
-      {/* Sidebar */}
-      <nav
-        className={`
-        w-60 bg-primary-700 fixed left-0 top-16 bottom-0 transform transition-transform duration-300 ease-in-out z-40
-        lg:translate-x-0 lg:relative lg:top-0
-        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
-      `}
-      >
-        <ChannelList onChannelSelect={() => setIsSidebarOpen(false)} />
-      </nav>
-
-      {/* Backdrop for mobile */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <main className="flex-1 mt-16 flex">
-        <div
-          className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? "" : "ml-1"}`}
+      {/* Main Layout */}
+      <div className="flex w-full mt-16">
+        {/* Sidebar */}
+        <nav
+          className={`
+          w-60 bg-primary-700 fixed lg:static h-[calc(100vh-4rem)] overflow-y-auto
+          transform transition-transform duration-300 ease-in-out z-40
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}
         >
-          <div className="h-full p-4 lg:p-0 lg:ml-1">
-            {shouldShowWelcome && (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <svg
-                  className="w-16 h-16 mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                <h3 className="text-xl font-semibold mb-2">Welcome to Chat</h3>
-                <p className="text-center">
-                  Select a channel or direct message from the sidebar to start a
-                  chatting
-                </p>
-              </div>
-            )}
-            {shouldShowChat && (
-              <div className="flex flex-col h-full">
-                <MessageList onThreadClick={setActiveThread} />
-                <MessageInput />
-              </div>
-            )}
-          </div>
-        </div>
+          <ChannelList onChannelSelect={() => setIsSidebarOpen(false)} />
+        </nav>
 
-        {/* Thread Panel */}
-        {activeThread && (
-          <ThreadPanel messageId={activeThread} onClose={handleCloseThread} />
+        {/* Backdrop for mobile */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
         )}
-      </main>
+
+        {/* Main Content */}
+        <main className="flex-1 flex">
+          <div className="flex-1 flex flex-col w-full">
+            <div className="h-full p-4 lg:p-0 lg:ml-1">
+              {shouldShowWelcome && (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <svg
+                    className="w-16 h-16 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  <h3 className="text-xl font-semibold mb-2">Welcome to ChatGenius</h3>
+                  <p className="text-center">
+                    Select a channel or direct message from the sidebar to start chatting
+                  </p>
+                </div>
+              )}
+              {shouldShowChat && (
+                <div className="flex flex-col h-full">
+                  <MessageList onThreadClick={setActiveThread} />
+                  <MessageInput />
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
 
       <ConfirmModal
         isOpen={showLogoutConfirm}

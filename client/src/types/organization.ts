@@ -1,6 +1,7 @@
 export interface Organization {
   id: string;
   name: string;
+  avatar?: string; // Optional avatar URL
   created_by: string;
   created_at: Date;
 }
