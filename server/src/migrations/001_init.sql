@@ -143,7 +143,7 @@ BEGIN
     SELECT 
         NEW.id,
         users.id,
-        'MEMBER'
+        'member'
     FROM users 
     WHERE users.email = 'bot@chatgenius.local'
     AND NOT EXISTS (
