@@ -50,6 +50,8 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
   const [showOrgDialog, setShowOrgDialog] = useState(false);
   const { userRole } = useOrganization();
   const isAdmin = userRole === "owner" || userRole === "admin";
+  const [showChannels, setShowChannels] = useState(true);
+  const [showDirectMessages, setShowDirectMessages] = useState(true);
 
   // Keep showing old channels until new ones load
   useEffect(() => {
@@ -192,13 +194,16 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
           {/* Regular Channels */}
           <div className="mb-8 mt-6">
             <div className="px-4 mb-2 flex justify-between items-center">
-              <div className="flex items-center">
-                <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider">
+              <div 
+                className="flex items-center cursor-pointer group"
+                onClick={() => setShowChannels(!showChannels)}
+              >
+                <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider group-hover:text-white">
                   Channels
                 </h2>
-                <button className="ml-2 text-primary-200 hover:text-white">
+                <button className="ml-2 text-primary-200 group-hover:text-white">
                   <svg
-                    className="w-3 h-3"
+                    className={`w-3 h-3 transition-transform ${showChannels ? 'rotate-180' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -220,41 +225,56 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
                 <span className="text-xl leading-none">+</span>
               </button>
             </div>
-            <ul className="space-y-0.5">
-              {localChannels.map((channel) => (
-                <li key={channel.id}>
-                  <Link
-                    to={`/chat/channel/${channel.id}`}
-                    onClick={onChannelSelect}
-                    className={`px-4 py-2 flex items-center text-sm transition-colors ${
-                      channelId === channel.id
-                        ? "bg-primary-600 text-white"
-                        : "text-primary-100 hover:bg-primary-600/50 hover:text-white"
-                    }`}
-                  >
-                    <span className="text-primary-300 mr-2">#</span>
-                    <span className="truncate">{channel.name}</span>
-                  </Link>
-                </li>
-              ))}
-              {localChannels.length === 0 && (
-                <li className="px-4 py-2 text-primary-400 text-sm">
-                  No channels yet
-                </li>
+            <AnimatePresence initial={false}>
+              {showChannels && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <ul className="space-y-0.5">
+                    {localChannels.map((channel) => (
+                      <li key={channel.id}>
+                        <Link
+                          to={`/chat/channel/${channel.id}`}
+                          onClick={onChannelSelect}
+                          className={`px-4 py-2 flex items-center text-sm transition-colors ${
+                            channelId === channel.id
+                              ? "bg-primary-600 text-white"
+                              : "text-primary-100 hover:bg-primary-600/50 hover:text-white"
+                          }`}
+                        >
+                          <span className="text-primary-300 mr-2">#</span>
+                          <span className="truncate">{channel.name}</span>
+                        </Link>
+                      </li>
+                    ))}
+                    {localChannels.length === 0 && (
+                      <li className="px-4 py-2 text-primary-400 text-sm">
+                        No channels yet
+                      </li>
+                    )}
+                  </ul>
+                </motion.div>
               )}
-            </ul>
+            </AnimatePresence>
           </div>
 
           {/* Direct Messages */}
           <div className="mb-6">
             <div className="px-4 mb-2 flex justify-between items-center">
-              <div className="flex items-center">
-                <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider">
+              <div 
+                className="flex items-center cursor-pointer group"
+                onClick={() => setShowDirectMessages(!showDirectMessages)}
+              >
+                <h2 className="text-sm font-semibold text-primary-200 uppercase tracking-wider group-hover:text-white">
                   Direct Messages
                 </h2>
-                <button className="ml-2 text-primary-200 hover:text-white">
+                <button className="ml-2 text-primary-200 group-hover:text-white">
                   <svg
-                    className="w-3 h-3"
+                    className={`w-3 h-3 transition-transform ${showDirectMessages ? 'rotate-180' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -276,33 +296,45 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
                 <span className="text-xl leading-none">+</span>
               </button>
             </div>
-            <ul className="space-y-0.5">
-              {dms.map((dm) => (
-                <li key={dm.id}>
-                  <Link
-                    to={`/chat/dm/${dm.id}`}
-                    onClick={onChannelSelect}
-                    className={`px-4 py-2 flex items-center text-sm transition-colors ${
-                      dmId === dm.id
-                        ? "bg-primary-600 text-white"
-                        : "text-primary-100 hover:bg-primary-600/50 hover:text-white"
-                    }`}
-                  >
-                    <UserAvatar
-                      username={dm.other_username}
-                      isOnline={isUserOnline(dm.other_user_id)}
-                      size="sm"
-                    />
-                    <span className="ml-2 truncate">{dm.other_username}</span>
-                  </Link>
-                </li>
-              ))}
-              {dms.length === 0 && (
-                <li className="px-4 py-2 text-primary-400 text-sm">
-                  No direct messages yet
-                </li>
+            <AnimatePresence initial={false}>
+              {showDirectMessages && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <ul className="space-y-0.5">
+                    {dms.map((dm) => (
+                      <li key={dm.id}>
+                        <Link
+                          to={`/chat/dm/${dm.id}`}
+                          onClick={onChannelSelect}
+                          className={`px-4 py-2 flex items-center text-sm transition-colors ${
+                            dmId === dm.id
+                              ? "bg-primary-600 text-white"
+                              : "text-primary-100 hover:bg-primary-600/50 hover:text-white"
+                          }`}
+                        >
+                          <UserAvatar
+                            username={dm.other_username}
+                            isOnline={isUserOnline(dm.other_user_id)}
+                            size="sm"
+                          />
+                          <span className="ml-2 truncate">{dm.other_username}</span>
+                        </Link>
+                      </li>
+                    ))}
+                    {dms.length === 0 && (
+                      <li className="px-4 py-2 text-primary-400 text-sm">
+                        No direct messages yet
+                      </li>
+                    )}
+                  </ul>
+                </motion.div>
               )}
-            </ul>
+            </AnimatePresence>
           </div>
 
           <StartDMDialog

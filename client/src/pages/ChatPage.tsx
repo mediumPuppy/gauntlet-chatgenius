@@ -14,7 +14,6 @@ import { GlobalMessageSearch } from "../components/global/GlobalMessageSearch";
 import { ThreadPanel } from "../components/chat/ThreadPanel";
 import { toggleAIEnabled, getAIEnabled } from "../services/aiSettings";
 import { Tooltip } from "../components/common/Tooltip";
-import { PageTransition } from "../components/transitions/PageTransition";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface DMInfo {
@@ -145,9 +144,6 @@ const ChatPageContent: React.FC = memo(() => {
   }, [location.pathname]); // Add location from useLocation hook
 
   return (
-    <PageTransition
-      transitionKey={`chat-${location.pathname}`}
-    >
       <div className="flex h-screen relative">
         {/* Header */}
         <header className="fixed top-0 left-0 right-0 h-16 bg-primary-600 flex items-center px-1 sm:px-2 md:px-4 z-50">
@@ -408,7 +404,6 @@ const ChatPageContent: React.FC = memo(() => {
           )}
         </AnimatePresence>
       </div>
-    </PageTransition>
   );
 });
 
