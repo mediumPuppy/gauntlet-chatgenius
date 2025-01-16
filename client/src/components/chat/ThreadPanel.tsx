@@ -7,6 +7,7 @@ import { MessageProvider } from "../../contexts/MessageContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMessages } from "../../contexts/MessageContext";
 import { Message as MessageComponent } from "./MessageList";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ThreadPanelProps {
   messageId: string;
@@ -107,49 +108,63 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
   }, [messages, messageId, threadContext, parent]);
 
   return (
-    <div className="w-96 border-l border-gray-200 h-full flex flex-col bg-white">
-      <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-        <h2 className="text-lg font-bold">Thread</h2>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-          ✕
-        </button>
-      </div>
+    <AnimatePresence mode="wait">
+      <motion.div 
+        key="thread-panel"
+        initial={{ x: "100%", opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 100,
+          damping: 20,
+          duration: 0.4
+        }}
+        className="w-96 border-l border-gray-200 h-full flex flex-col bg-white"
+      >
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="text-lg font-bold">Thread</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            ✕
+          </button>
+        </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {parent && (
-          <MessageComponent 
-            message={parent} 
-            onThreadClick={() => {}} 
-            isThreadView={true}
-          />
-        )}
-
-        <div className="space-y-4">
-          {replies.map((reply) => (
-            <MessageComponent
-              key={reply.id}
-              message={reply}
-              onThreadClick={() => {}}
+        <div className="flex-1 overflow-y-auto p-4">
+          {parent && (
+            <MessageComponent 
+              message={parent} 
+              onThreadClick={() => {}} 
               isThreadView={true}
             />
-          ))}
-        </div>
-      </div>
+          )}
 
-      {parent && (
-        <MessageProvider 
-          channelId={parent.channelId || parent.dmId || ""} 
-          isDM={!!parent.dmId}
-        >
-          <div className="p-4 border-t border-gray-200">
-            <MessageInput
-              parentId={messageId}
-              placeholder={`Reply to thread...`}
-              isThread={true}
-            />
+          <div className="space-y-4">
+            {replies.map((reply) => (
+              <MessageComponent
+                key={reply.id}
+                message={reply}
+                onThreadClick={() => {}}
+                isThreadView={true}
+              />
+            ))}
           </div>
-        </MessageProvider>
-      )}
-    </div>
+        </div>
+
+        {parent && (
+          <MessageProvider 
+            channelId={parent.channelId || parent.dmId || ""} 
+            isDM={!!parent.dmId}
+          >
+            <div className="p-4 border-t border-gray-200">
+              <MessageInput
+                parentId={messageId}
+                placeholder={`Reply to thread...`}
+                isThread={true}
+              />
+            </div>
+          </MessageProvider>
+        )}
+      </motion.div>
+    </AnimatePresence>
   );
 }

@@ -373,124 +373,121 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
               }}
             >
               <div className={styles.modeSwitcher}>
-                {isBotMode ? (
-                  <div className={`${styles.modeContent} ${styles.modeTransition}`}>
-                    <div className={styles.scopeSelector}>
-                      <Combobox 
-                        value={selectedScope} 
-                        onChange={handleScopeSelect}
-                        as="div"
-                        aria-label="Select search scope"
-                      >
-                        <div className="relative">
-                          <div className={styles.scopeInput}>
-                            <Combobox.Input
-                              className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 bg-transparent"
-                              displayValue={(scope: ScopeOption) => scope?.name || ''}
-                              onChange={(event) => setScopeQuery(event.target.value)}
-                              placeholder="Select scope..."
-                              onFocus={() => setIsInputFocused(true)}
-                              onBlur={() => setIsInputFocused(false)}
-                            />
-                            <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
-                              <ChevronUpDownIcon
-                                className="h-5 w-5 text-gray-400"
-                                aria-hidden="true"
+                <div className={`${styles.modeContent} ${styles.modeTransition} min-h-[140px]`}>
+                  {isBotMode ? (
+                    <div className="space-y-4">
+                      <div className={styles.scopeSelector}>
+                        <Combobox value={selectedScope} onChange={handleScopeSelect}>
+                          <div className="relative">
+                            <div className={styles.scopeInput}>
+                              <Combobox.Input
+                                className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 bg-transparent"
+                                displayValue={(scope: ScopeOption) => scope?.name || ''}
+                                onChange={(event) => setScopeQuery(event.target.value)}
+                                placeholder="Select scope..."
+                                onFocus={() => setIsInputFocused(true)}
+                                onBlur={() => setIsInputFocused(false)}
                               />
-                            </Combobox.Button>
+                              <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                                <ChevronUpDownIcon
+                                  className="h-5 w-5 text-gray-400"
+                                  aria-hidden="true"
+                                />
+                              </Combobox.Button>
+                            </div>
+                            <Transition
+                              show={isInputFocused || scopeQuery !== ''}
+                              leave="transition ease-in duration-100"
+                              leaveFrom="opacity-100"
+                              leaveTo="opacity-0"
+                              afterLeave={() => setScopeQuery('')}
+                            >
+                              <Combobox.Options className={styles.optionsList}>
+                                {filteredOptions.map((option) => (
+                                  <Combobox.Option
+                                    key={option.id}
+                                    className={({ selected }) =>
+                                      `${styles.option} ${selected ? styles.optionActive : styles.optionInactive} ${option.color}`
+                                    }
+                                    value={option}
+                                  >
+                                    {({ selected }) => (
+                                      <>
+                                        <div className={styles.optionIcon}>
+                                          <span>{option.icon}</span>
+                                        </div>
+                                        <div className={styles.optionText}>
+                                          <span className={styles.optionName}>{option.name}</span>
+                                          <span className={styles.optionDescription}>
+                                            {option.description}
+                                          </span>
+                                        </div>
+                                        {selected && (
+                                          <CheckIcon className="h-5 w-5 text-primary-600 absolute right-2" />
+                                        )}
+                                      </>
+                                    )}
+                                  </Combobox.Option>
+                                ))}
+                              </Combobox.Options>
+                            </Transition>
                           </div>
-                          <Transition
-                            show={isInputFocused || scopeQuery !== ''}
-                            leave="transition ease-in duration-100"
-                            leaveFrom="opacity-100"
-                            leaveTo="opacity-0"
-                            afterLeave={() => setScopeQuery('')}
+                        </Combobox>
+                      </div>
+                      <div className={`flex space-x-2 ${styles.slideRight}`}>
+                        <input
+                          ref={searchInputRef}
+                          type="text"
+                          placeholder="Ask a question... (Press Enter to send)"
+                          value={query}
+                          onChange={handleInputChange}
+                          className={`${styles.searchInput} ${isLoading ? styles.loadingPulse : ''}`}
+                          aria-label="Bot query input"
+                          aria-busy={isLoading}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && isBotMode && !isSending) {
+                              e.preventDefault();
+                              handleBotSubmit();
+                            }
+                          }}
+                        />
+                        {isBotMode && (
+                          <button
+                            onClick={handleBotSubmit}
+                            disabled={!selectedScope || isSending}
+                            className={styles.sendButton}
+                            aria-label="Send query to bot"
+                            aria-busy={isSending}
                           >
-                            <Combobox.Options className={styles.optionsList}>
-                              {filteredOptions.map((option) => (
-                                <Combobox.Option
-                                  key={option.id}
-                                  className={({ selected }) =>
-                                    `${styles.option} ${selected ? styles.optionActive : styles.optionInactive} ${option.color}`
-                                  }
-                                  value={option}
-                                >
-                                  {({ selected }) => (
-                                    <>
-                                      <div className={styles.optionIcon}>
-                                        <span>{option.icon}</span>
-                                      </div>
-                                      <div className={styles.optionText}>
-                                        <span className={styles.optionName}>{option.name}</span>
-                                        <span className={styles.optionDescription}>
-                                          {option.description}
-                                        </span>
-                                      </div>
-                                      {selected && (
-                                        <CheckIcon className="h-5 w-5 text-primary-600 absolute right-2" />
-                                      )}
-                                    </>
-                                  )}
-                                </Combobox.Option>
-                              ))}
-                            </Combobox.Options>
-                          </Transition>
-                        </div>
-                      </Combobox>
+                            {isSending ? (
+                              <span className="flex items-center space-x-2" aria-hidden="true">
+                                <span className={styles.loadingSpinner} />
+                                <span>Sending</span>
+                              </span>
+                            ) : (
+                              'Send'
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className={`flex space-x-2 ${styles.slideRight}`}>
+                  ) : (
+                    <div>
                       <input
                         ref={searchInputRef}
                         type="text"
-                        placeholder="Ask a question... (Press Enter to send)"
+                        placeholder="Search messages... (Press / to focus)"
                         value={query}
                         onChange={handleInputChange}
-                        className={`${styles.searchInput} ${isLoading ? styles.loadingPulse : ''}`}
-                        aria-label="Bot query input"
+                        className={styles.searchInput}
+                        aria-label="Search input"
                         aria-busy={isLoading}
                         autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && isBotMode && !isSending) {
-                            e.preventDefault();
-                            handleBotSubmit();
-                          }
-                        }}
                       />
-                      {isBotMode && (
-                        <button
-                          onClick={handleBotSubmit}
-                          disabled={!selectedScope || isSending}
-                          className={styles.sendButton}
-                          aria-label="Send query to bot"
-                          aria-busy={isSending}
-                        >
-                          {isSending ? (
-                            <span className="flex items-center space-x-2" aria-hidden="true">
-                              <span className={styles.loadingSpinner} />
-                              <span>Sending</span>
-                            </span>
-                          ) : (
-                            'Send'
-                          )}
-                        </button>
-                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div className={`${styles.modeContent} ${styles.modeTransition}`}>
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      placeholder="Search messages... (Press / to focus)"
-                      value={query}
-                      onChange={handleInputChange}
-                      className={styles.searchInput}
-                      aria-label="Search input"
-                      aria-busy={isLoading}
-                      autoFocus
-                    />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </CSSTransition>
           </SwitchTransition>

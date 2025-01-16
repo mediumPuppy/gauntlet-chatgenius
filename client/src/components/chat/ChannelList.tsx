@@ -10,6 +10,7 @@ import { usePresence } from "../../contexts/PresenceContext";
 import { UserAvatar } from "../common/UserAvatar";
 import { OrganizationDialog } from "../organization/OrganizationDialog";
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Channel {
   id: string;
@@ -152,25 +153,41 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
           )}
         </div>
 
-        {/* Loading Overlay */}
-        <div
-          className="absolute inset-0 bg-primary-700/50 transition-opacity duration-300 pointer-events-none"
-          style={{ opacity: loading || channelsLoading ? 0.7 : 0 }}
-        >
-          <div className="animate-pulse p-4">
-            <div className="h-6 bg-white/10 rounded w-24 mb-4"></div>
-            <div className="space-y-3">
-              <div className="h-8 bg-white/10 rounded"></div>
-              <div className="h-8 bg-white/10 rounded"></div>
-              <div className="h-8 bg-white/10 rounded"></div>
-            </div>
-          </div>
-        </div>
+        {/* Loading Overlay with Animation */}
+        <AnimatePresence>
+          {(loading || channelsLoading) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-primary-700 pointer-events-none z-10"
+            >
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ delay: 0.1 }}
+                className="p-4"
+              >
+                <div className="h-6 bg-white/10 rounded w-24 mb-4"></div>
+                <div className="space-y-3">
+                  <div className="h-8 bg-white/10 rounded"></div>
+                  <div className="h-8 bg-white/10 rounded"></div>
+                  <div className="h-8 bg-white/10 rounded"></div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Content */}
-        <div
-          className="transition-opacity duration-300"
-          style={{ opacity: loading || channelsLoading ? 0.3 : 1 }}
+        {/* Content with Animation */}
+        <motion.div
+          animate={{
+            opacity: loading || channelsLoading ? 0.3 : 1
+          }}
+          transition={{ duration: 0.2 }}
+          className="flex-1 overflow-y-auto"
         >
           {/* Regular Channels */}
           <div className="mb-8 mt-6">
@@ -297,7 +314,7 @@ export function ChannelList({ onChannelSelect }: ChannelListProps) {
             isOpen={isChannelDialogOpen}
             onClose={() => setIsChannelDialogOpen(false)}
           />
-        </div>
+        </motion.div>
       </div>
 
       {showOrgDialog && createPortal(

@@ -9,7 +9,7 @@ interface Organization {
   created_at: Date;
 }
 
-interface OrganizationContextType {
+export interface OrganizationContextType {
   currentOrganization: Organization | null;
   isLoading: boolean;
   organizations: Organization[];
@@ -18,6 +18,7 @@ interface OrganizationContextType {
   createOrganization: (name: string) => Promise<Organization>;
   inviteMember: (email: string) => Promise<void>;
   joinOrganization: (inviteCode: string) => Promise<void>;
+  updateOrganization: (orgId: string, data: { name: string }) => Promise<void>;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | null>(null);
@@ -180,6 +181,20 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({
         createOrganization: createOrgMutation.mutateAsync,
         joinOrganization: joinOrgMutation.mutateAsync,
         inviteMember,
+        updateOrganization: async (orgId: string, data: { name: string }) => {
+          if (!token) throw new Error("Not authenticated");
+
+          const response = await fetch(`/api/organizations/${orgId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(data),
+          });
+
+          if (!response.ok) throw new Error("Failed to update organization");
+        },
       }}
     >
       {children}
