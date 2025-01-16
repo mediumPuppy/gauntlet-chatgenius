@@ -100,7 +100,7 @@ const ChatPageContent: React.FC = memo(() => {
           <div className="ml-2">
             <div className="font-medium">{currentDM.other_username}</div>
             <div className="text-sm opacity-75">
-              {isUserOnline(currentDM.other_user_id) ? "Online" : "Offline"}
+              {isUserOnline(currentDM.other_user_id) ? "Onlines" : "Offline"}
             </div>
           </div>
         </div>
