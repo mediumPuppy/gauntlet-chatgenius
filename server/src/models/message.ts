@@ -1,4 +1,4 @@
-import pool from '../config/database';
+import pool from "../config/database";
 
 export interface Message {
   id: string;
@@ -35,30 +35,30 @@ export const messageQueries = {
        WHERE m.channel_id = $1 
        ORDER BY m.created_at ASC
        LIMIT 50`,
-      [channelId]
+      [channelId],
     );
-    
+
     // Transform to match client format
-    return result.rows.map(msg => ({
+    return result.rows.map((msg) => ({
       id: msg.id,
       content: msg.content,
       userId: msg.user_id,
       channelId: msg.channel_id,
       dmId: msg.dm_id,
       senderName: msg.sender_name,
-      timestamp: new Date(msg.timestamp).getTime()
+      timestamp: new Date(msg.timestamp).getTime(),
     }));
   },
 
   async createMessage(data: CreateMessageData): Promise<Message> {
     // First verify user is member of channel
     const memberCheck = await pool.query(
-      'SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2',
-      [data.channelId, data.userId]
+      "SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2",
+      [data.channelId, data.userId],
     );
 
     if (memberCheck.rows.length === 0) {
-      throw new Error('Not a member of this channel');
+      throw new Error("Not a member of this channel");
     }
 
     // Create message
@@ -66,13 +66,13 @@ export const messageQueries = {
       `INSERT INTO messages (channel_id, user_id, content)
        VALUES ($1, $2, $3)
        RETURNING id, channel_id, user_id, content, created_at`,
-      [data.channelId, data.userId, data.content]
+      [data.channelId, data.userId, data.content],
     );
 
     // Get username for response
     const userResult = await pool.query(
-      'SELECT username FROM users WHERE id = $1',
-      [data.userId]
+      "SELECT username FROM users WHERE id = $1",
+      [data.userId],
     );
 
     // Transform to match client format
@@ -82,7 +82,7 @@ export const messageQueries = {
       userId: result.rows[0].user_id,
       channelId: result.rows[0].channel_id,
       senderName: userResult.rows[0].username,
-      timestamp: new Date(result.rows[0].created_at).getTime()
+      timestamp: new Date(result.rows[0].created_at).getTime(),
     };
-  }
-}; 
+  },
+};

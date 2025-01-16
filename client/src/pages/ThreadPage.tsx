@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { API_URL } from '../services/config';
-import { Message } from '../types/message';
-import { MessageInput } from '../components/chat/MessageInput';
-import { MessageProvider } from '../contexts/MessageContext';
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { API_URL } from "../services/config";
+import { Message } from "../types/message";
+import { MessageInput } from "../components/chat/MessageInput";
+import { MessageProvider } from "../contexts/MessageContext";
 
 interface ThreadResponse {
   parent: Message;
@@ -28,7 +28,7 @@ export default function ThreadPage() {
         setParent(data.parent);
         setReplies(data.replies);
       } catch (error) {
-        console.error('Error fetching thread:', error);
+        console.error("Error fetching thread:", error);
       }
     }
     if (messageId) {
@@ -66,7 +66,7 @@ export default function ThreadPage() {
       {messageId && parent && (
         <MessageProvider channelId={parent.channelId!} isDM={false}>
           <div className="mt-auto">
-            <MessageInput 
+            <MessageInput
               parentId={messageId}
               placeholder={`Reply to ${parent.senderName}'s message...`}
               isThread={true}

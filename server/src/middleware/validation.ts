@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from "express";
 
 interface ValidationRule {
-  type: 'string' | 'number' | 'boolean';
+  type: "string" | "number" | "boolean";
   required?: boolean;
 }
 
@@ -18,7 +18,7 @@ export const validateRequest = (schema: ValidationSchema): RequestHandler => {
     const validateObject = (
       obj: any,
       schemaSection: Record<string, ValidationRule> | undefined,
-      location: string
+      location: string,
     ): void => {
       if (!schemaSection) return;
 
@@ -34,9 +34,9 @@ export const validateRequest = (schema: ValidationSchema): RequestHandler => {
       }
     };
 
-    validateObject(req.body, schema.body, 'body');
-    validateObject(req.query, schema.query, 'query');
-    validateObject(req.params, schema.params, 'params');
+    validateObject(req.body, schema.body, "body");
+    validateObject(req.query, schema.query, "query");
+    validateObject(req.params, schema.params, "params");
 
     if (errors.length > 0) {
       res.status(400).json({ errors });
@@ -50,16 +50,16 @@ export const validateRequest = (schema: ValidationSchema): RequestHandler => {
 // Validation middleware for signup
 export const validateSignup = validateRequest({
   body: {
-    email: { type: 'string', required: true },
-    password: { type: 'string', required: true },
-    username: { type: 'string', required: true }
-  }
+    email: { type: "string", required: true },
+    password: { type: "string", required: true },
+    username: { type: "string", required: true },
+  },
 });
 
 // Validation middleware for login
 export const validateLogin = validateRequest({
   body: {
-    email: { type: 'string', required: true },
-    password: { type: 'string', required: true }
-  }
-}); 
+    email: { type: "string", required: true },
+    password: { type: "string", required: true },
+  },
+});

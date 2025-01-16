@@ -92,7 +92,8 @@ export function MessageProvider({
         id: tempId,
         content,
         userId: user.id,
-        channelId,
+        channelId: isDM ? undefined : channelId,
+        dmId: isDM ? channelId : undefined,
         senderName: user.username,
         timestamp: Date.now(),
         parentId,
@@ -108,23 +109,17 @@ export function MessageProvider({
       wsSendMessage(content, tempId, parentId);
 
       // Check for mentions and trigger AI responses asynchronously
-      console.log("MessageContext: Checking for mentions in ai:", content);
       const mentions = content.match(/@(\w+)/g);
       if (mentions) {
-        mentions.forEach(mention => {
-          console.log("MessageContext: Found mentions ai:", mentions);
-
+        mentions.forEach((mention) => {
           const username = mention.substring(1); // Remove @ symbol
           // Pass the last 10 messages for context
-          console.log("MessageContext: Triggering AI for:", username);
-
           const recentMessages = messages.slice(-10);
-          console.log("MessageContext: Recent messages ai:", recentMessages);
           triggerAIResponse(username, newMessage, recentMessages, token!);
         });
       }
     },
-    [user, channelId, wsSendMessage, messages, token]
+    [user, channelId, wsSendMessage, messages, token],
   );
 
   // Fetch message history when channel changes
@@ -146,7 +141,7 @@ export function MessageProvider({
           console.error(
             "Failed to fetch messages:",
             response.status,
-            response.statusText
+            response.statusText,
           );
           throw new Error("Failed to fetch messages");
         }
@@ -178,7 +173,7 @@ export function MessageProvider({
 
           // Add all message IDs to processed set
           transformedMessages.forEach((msg: Message) =>
-            processedMessageIds.current.add(msg.id)
+            processedMessageIds.current.add(msg.id),
           );
 
           setMessages(transformedMessages);
@@ -204,10 +199,15 @@ export function MessageProvider({
 
     const handleMessage = (event: CustomEvent) => {
       const data = event.detail;
-      console.log("Received WebSocket message:", data);
 
-      // Only process messages for current channel/DM
-      if (data.channelId !== channelId) return;
+      // For thread messages, we need to check both channelId and parentId
+      // For DMs, we need to check both channelId/dmId
+      const isRelevantMessage = isDM
+        ? data.channelId === channelId || data.dmId === channelId
+        : data.channelId === channelId;
+
+      // Skip if message is not relevant to current context
+      if (!isRelevantMessage) return;
 
       switch (data.type) {
         case "message": {
@@ -216,7 +216,6 @@ export function MessageProvider({
 
           // Skip if we've already processed this message
           if (processedMessageIds.current.has(messageId)) {
-            console.log("Skipping duplicate message:", messageId);
             return;
           }
 
@@ -225,17 +224,16 @@ export function MessageProvider({
           const lastMessageTime =
             lastMessageTimestampRef.current[data.senderId] || 0;
           if (now - lastMessageTime < 100) {
-            console.log("Rate limiting message from user:", data.senderId);
             return;
           }
           lastMessageTimestampRef.current[data.senderId] = now;
 
-          console.log("Processing new message:", data);
           const newMessage: Message = {
             id: messageId,
             content: data.content,
             userId: data.userId || data.user_id || data.userid || data.senderId,
-            channelId: data.channelId || data.channel_id || channelId,
+            channelId: isDM ? undefined : (data.channelId || data.channel_id || channelId),
+            dmId: isDM ? (data.channelId || data.channel_id || channelId) : undefined,
             senderName:
               data.senderName ||
               data.sender_name ||
@@ -245,9 +243,9 @@ export function MessageProvider({
               typeof data.timestamp === "string"
                 ? new Date(data.timestamp).getTime()
                 : data.timestamp || Date.now(),
-            parentId: data.parentId, // Add parentId
-            hasReplies: data.hasReplies, // Add hasReplies
-            replyCount: data.replyCount, // Add replyCount
+            parentId: data.parentId,
+            hasReplies: data.hasReplies,
+            replyCount: data.replyCount,
           };
 
           // Add to processed set
@@ -257,7 +255,7 @@ export function MessageProvider({
           if (processedMessageIds.current.size > 1000) {
             const oldestEntries = Array.from(processedMessageIds.current).slice(
               0,
-              500
+              500,
             );
             processedMessageIds.current = new Set(oldestEntries);
           }
@@ -272,7 +270,7 @@ export function MessageProvider({
                         hasReplies: true,
                         replyCount: (msg.replyCount || 0) + 1,
                       }
-                    : msg
+                    : msg,
                 )
               : prev;
 
@@ -304,21 +302,14 @@ export function MessageProvider({
           // Clear typing indicator after 3 seconds
           setTimeout(() => {
             setTypingUsers((prev) =>
-              prev.filter((u) => u.userId !== typingUserId)
+              prev.filter((u) => u.userId !== typingUserId),
             );
           }, 3000);
           break;
         }
 
         case "reaction": {
-          console.log("Handling reaction event:", data);
           const { messageId, userId, emoji, action } = data;
-          console.log("Handling reaction event:", {
-            messageId,
-            userId,
-            emoji,
-            action,
-          });
 
           setMessages((prev) => {
             return prev.map((msg) => {
@@ -330,10 +321,6 @@ export function MessageProvider({
               ) {
                 // Create a new reactions object if it doesn't exist
                 const currentReactions = { ...(msg.reactions || {}) };
-                console.log(
-                  "Current reactions before update:",
-                  currentReactions
-                );
 
                 if (action === "added") {
                   // Create new array if emoji doesn't exist
@@ -343,7 +330,7 @@ export function MessageProvider({
                   // Remove user from the emoji's users array
                   if (currentReactions[emoji]) {
                     currentReactions[emoji] = currentReactions[emoji].filter(
-                      (id) => id !== userId
+                      (id) => id !== userId,
                     );
                     if (currentReactions[emoji].length === 0) {
                       delete currentReactions[emoji];
@@ -351,7 +338,6 @@ export function MessageProvider({
                   }
                 }
 
-                console.log("Updated reactions:", currentReactions);
                 return { ...msg, reactions: currentReactions };
               }
               return msg;
@@ -364,14 +350,14 @@ export function MessageProvider({
 
     eventEmitter.addEventListener(
       WS_MESSAGE_EVENT,
-      handleMessage as EventListener
+      handleMessage as EventListener,
     );
     return () =>
       eventEmitter.removeEventListener(
         WS_MESSAGE_EVENT,
-        handleMessage as EventListener
+        handleMessage as EventListener,
       );
-  }, [channelId, eventEmitter, ws]);
+  }, [channelId, eventEmitter, ws, isDM]);
 
   return (
     <MessageContext.Provider

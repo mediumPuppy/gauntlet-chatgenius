@@ -12,6 +12,22 @@ import { messageQueries } from "../models/message";
 import { channelQueries } from "../models/channel";
 import { userQueries } from "../models/user";
 import pool from "../config/database";
+import { vectorStoreService } from "../services/vectorStore";
+import { OpenAI } from "openai";
+import crypto from "crypto";
+import { createOpenAIClient } from "../utils/openai";
+
+// Update WebSocketMessage type to include bot response fields
+interface BotResponseMessage extends WebSocketMessage {
+  id: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  channelId: string;
+  isDM: boolean;
+  parentId?: string;
+  timestamp: number;
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const clients = new Map<string, Set<WebSocketClient>>();
@@ -42,12 +58,10 @@ export class WebSocketHandler {
 
   private async authenticateConnection(
     ws: WebSocketClient,
-    token: string
+    token: string,
   ): Promise<boolean> {
-    console.log('Attempting WebSocket authentication');
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-      console.log('WebSocket authentication successful for user:', decoded.id);
       ws.userId = decoded.id;
       ws.isAlive = true;
 
@@ -60,7 +74,7 @@ export class WebSocketHandler {
       await this.broadcastPresenceUpdate(ws.userId, true);
       return true;
     } catch (error) {
-      console.error('WebSocket authentication failed:', error);
+      console.error("WebSocket authentication failed:", error);
       ws.send(JSON.stringify({ type: "error", error: "Invalid token" }));
       ws.close();
       return false;
@@ -71,14 +85,14 @@ export class WebSocketHandler {
     try {
       const user = await pool.query(
         "SELECT username, last_seen FROM users WHERE id = $1",
-        [userId]
+        [userId],
       );
       if (user.rows.length === 0) return;
 
       // Get all organizations the user is part of
       const orgs = await pool.query(
         "SELECT organization_id FROM organization_members WHERE user_id = $1",
-        [userId]
+        [userId],
       );
 
       // Get all unique members from all organizations
@@ -86,7 +100,7 @@ export class WebSocketHandler {
       for (const org of orgs.rows) {
         const members = await pool.query(
           "SELECT user_id FROM organization_members WHERE organization_id = $1",
-          [org.organization_id]
+          [org.organization_id],
         );
         members.rows.forEach((member) => memberSet.add(member.user_id));
       }
@@ -163,14 +177,12 @@ export class WebSocketHandler {
     try {
       const user = await pool.query(
         "SELECT username FROM users WHERE id = $1",
-        [ws.userId]
+        [ws.userId],
       );
       if (user.rows.length === 0) {
         ws.send(JSON.stringify({ type: "error", error: "User not found" }));
         return;
       }
-
-      console.log("Handling chat message:", data);
 
       const message = {
         id: data.id,
@@ -188,7 +200,7 @@ export class WebSocketHandler {
         const dmCheck = await pool.query(
           `SELECT * FROM direct_messages 
            WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-          [data.channelId, ws.userId]
+          [data.channelId, ws.userId],
         );
 
         if (dmCheck.rows.length === 0) {
@@ -196,15 +208,15 @@ export class WebSocketHandler {
             JSON.stringify({
               type: "error",
               error: "Not authorized for this DM",
-            })
+            }),
           );
           return;
         }
 
         // Save DM message
         await pool.query(
-          "INSERT INTO messages (id, content, user_id, dm_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
-          [data.id, data.content, ws.userId, data.channelId]
+          "INSERT INTO messages (id, content, user_id, dm_id, parent_id, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+          [data.id, data.content, ws.userId, data.channelId, data.parentId],
         );
 
         // Broadcast to DM participants
@@ -213,10 +225,13 @@ export class WebSocketHandler {
           ...message,
         });
       } else {
-        // Verify user is part of the channel
+        // Verify user is part of the channel and get organization_id
         const channelCheck = await pool.query(
-          "SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2",
-          [data.channelId, ws.userId]
+          `SELECT cm.*, c.organization_id 
+           FROM channel_members cm 
+           JOIN channels c ON cm.channel_id = c.id 
+           WHERE cm.channel_id = $1 AND cm.user_id = $2`,
+          [data.channelId, ws.userId],
         );
 
         if (channelCheck.rows.length === 0) {
@@ -224,34 +239,79 @@ export class WebSocketHandler {
             JSON.stringify({
               type: "error",
               error: "Not authorized for this channel",
-            })
+            }),
           );
           return;
         }
 
-        // Save channel message with parentId
+        const organizationId = channelCheck.rows[0].organization_id;
+
+        // Check for @bot mention before saving message
+        const isBotMention = data.content.trim().startsWith('@bot');
+
+        // Save message and broadcast first
         await pool.query(
           "INSERT INTO messages (id, content, user_id, channel_id, parent_id, created_at) VALUES ($1, $2, $3, $4, $5::uuid, NOW())",
-          [
-            data.id,
-            data.content,
-            ws.userId,
-            data.channelId,
-            data.parentId || null,
-          ]
+          [data.id, data.content, ws.userId, data.channelId, data.parentId || null],
         );
 
-        // Broadcast to channel members
+        // Broadcast to channel members immediately
         await this.broadcastToChannel(data.channelId, {
           type: "message",
           ...message,
         });
+
+        // Handle bot mention if present
+        if (isBotMention) {
+          await this.handleBotMessage(ws, data, organizationId);
+        }
+
+        // Only update vector stores if we have a valid organizationId
+        if (organizationId) {
+          setImmediate(async () => {
+            console.log(`[VectorStore] Processing updates for channel ${data.channelId} and org ${organizationId}`);
+            
+            try {
+              // Update channel vector store first
+              await vectorStoreService.addDocuments(
+                { type: "channel", channelId: data.channelId },
+                [{
+                  content: data.content,
+                  userId: ws.userId!,
+                  username: user.rows[0].username,
+                  timestamp: new Date(),
+                  channelName: channelCheck.rows[0].name,
+                  messageType: data.parentId ? 'reply' : 'message',
+                  parentMessageId: data.parentId
+                }]
+              );
+              console.log(`[VectorStore] Successfully updated channel store for ${data.channelId}`);
+
+              // Then update organization vector store
+              await vectorStoreService.addDocuments(
+                { type: "organization", organizationId },
+                [{
+                  content: data.content,
+                  userId: ws.userId!,
+                  username: user.rows[0].username,
+                  timestamp: new Date(),
+                  channelName: channelCheck.rows[0].name,
+                  messageType: data.parentId ? 'reply' : 'message',
+                  parentMessageId: data.parentId
+                }]
+              );
+              console.log(`[VectorStore] Successfully updated organization store for ${organizationId}`);
+            } catch (error) {
+              console.error("[VectorStore] Error updating vector stores:", error);
+            }
+          });
+        } else {
+          console.warn(`[VectorStore] No organization found for channel ${data.channelId}`);
+        }
       }
     } catch (error) {
-      console.error("Error handling chat message:", error);
-      ws.send(
-        JSON.stringify({ type: "error", error: "Failed to process message" })
-      );
+      console.error("Error in handleChatMessage:", error);
+      ws.send(JSON.stringify({ type: "error", error: "Failed to process message" }));
     }
   }
 
@@ -259,7 +319,7 @@ export class WebSocketHandler {
     try {
       const user = await pool.query(
         "SELECT username FROM users WHERE id = $1",
-        [ws.userId]
+        [ws.userId],
       );
       if (user.rows.length === 0) return;
 
@@ -283,7 +343,7 @@ export class WebSocketHandler {
 
   private async broadcastToChannel(
     channelId: string,
-    message: WebSocketMessage
+    message: WebSocketMessage | BotResponseMessage,
   ) {
     const channelClients = clients.get(channelId) || new Set();
     const messageStr = JSON.stringify(message);
@@ -300,7 +360,7 @@ export class WebSocketHandler {
       // Get DM participants
       const participants = await pool.query(
         "SELECT user1_id, user2_id FROM direct_messages WHERE id = $1",
-        [dmId]
+        [dmId],
       );
 
       if (participants.rows.length === 0) return;
@@ -339,11 +399,10 @@ export class WebSocketHandler {
       // Get the channel/DM ID and parent_id for this message
       const message = await pool.query(
         "SELECT channel_id, dm_id, parent_id FROM messages WHERE id = $1",
-        [messageId]
+        [messageId],
       );
 
       if (message.rows.length === 0) {
-        console.log("Message not found:", messageId);
         ws?.send(JSON.stringify({ type: "error", error: "Message not found" }));
         return;
       }
@@ -362,30 +421,27 @@ export class WebSocketHandler {
       };
 
       if (channel_id) {
-        console.log("Broadcasting to channel:", channel_id);
         await this.broadcastToChannel(channel_id, reactionMessage);
       } else if (dm_id) {
-        console.log("Broadcasting to DM:", dm_id);
         await this.broadcastToDM(dm_id, reactionMessage);
       }
     } catch (error) {
       console.error("Error handling reaction:", error);
       ws?.send(
-        JSON.stringify({ type: "error", error: "Failed to process reaction" })
+        JSON.stringify({ type: "error", error: "Failed to process reaction" }),
       );
     }
   }
 
   public handleConnection(ws: WebSocketClient) {
-    console.log('New WebSocket connection attempt');
     ws.isAlive = true;
-    
-    ws.on('pong', () => {
+
+    ws.on("pong", () => {
       ws.isAlive = true;
     });
 
-    ws.on('error', (err) => {
-      console.error('WebSocket client error:', err);
+    ws.on("error", (err) => {
+      console.error("WebSocket client error:", err);
     });
 
     ws.on("message", async (message: string) => {
@@ -394,7 +450,7 @@ export class WebSocketHandler {
         await this.handleMessage(ws, data);
       } catch (error) {
         ws.send(
-          JSON.stringify({ type: "error", error: "Invalid message format" })
+          JSON.stringify({ type: "error", error: "Invalid message format" }),
         );
       }
     });
@@ -422,7 +478,7 @@ export class WebSocketHandler {
       // Verify user is member of the channel
       const member = await pool.query(
         "SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2",
-        [channelId, ws.userId]
+        [channelId, ws.userId],
       );
 
       if (member.rows.length === 0) {
@@ -430,7 +486,7 @@ export class WebSocketHandler {
           JSON.stringify({
             type: "error",
             error: "Not a member of this channel",
-          })
+          }),
         );
         return;
       }
@@ -443,7 +499,7 @@ export class WebSocketHandler {
     } catch (error) {
       console.error("Error joining channel:", error);
       ws.send(
-        JSON.stringify({ type: "error", error: "Failed to join channel" })
+        JSON.stringify({ type: "error", error: "Failed to join channel" }),
       );
     }
   }
@@ -456,12 +512,15 @@ export class WebSocketHandler {
       const dmCheck = await pool.query(
         `SELECT * FROM direct_messages 
          WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-        [dmId, ws.userId]
+        [dmId, ws.userId],
       );
 
       if (dmCheck.rows.length === 0) {
         ws.send(
-          JSON.stringify({ type: "error", error: "Not authorized for this DM" })
+          JSON.stringify({
+            type: "error",
+            error: "Not authorized for this DM",
+          }),
         );
         return;
       }
@@ -483,6 +542,198 @@ export class WebSocketHandler {
       await this.broadcastToDM(messageData.channelId, messageData);
     } else {
       await this.broadcastToChannel(messageData.channelId, messageData);
+    }
+  }
+
+  private async handleBotMessage(ws: WebSocketClient, data: ChatMessage, organizationId: string) {
+    try {
+      // Get bot user first to ensure it exists
+      const botUser = await pool.query(
+        "SELECT id, username FROM users WHERE is_bot = true LIMIT 1"
+      );
+
+      if (botUser.rows.length === 0) {
+        console.error("Bot user not found");
+        ws.send(JSON.stringify({ 
+          type: "error", 
+          error: "Bot user not configured" 
+        }));
+        return;
+      }
+
+      // Ensure bot has AI enabled
+      await pool.query(
+        "UPDATE users SET ai_enabled = true WHERE id = $1",
+        [botUser.rows[0].id]
+      );
+
+      // Remove @bot from the content
+      const cleanContent = data.content.replace(/^@bot\s+/, '').trim();
+      
+      // Get channel context for vector store
+      const channelResult = await pool.query(
+        "SELECT name FROM channels WHERE id = $1",
+        [data.channelId]
+      );
+
+      const user = await pool.query(
+        "SELECT username FROM users WHERE id = $1",
+        [ws.userId]
+      );
+
+      // Update vector stores first to include the user's question
+      await vectorStoreService.addDocuments(
+        { type: "channel", channelId: data.channelId },
+        [{
+          content: cleanContent,
+          userId: ws.userId!,
+          username: user.rows[0].username,
+          timestamp: new Date(),
+          channelName: channelResult.rows[0].name,
+          messageType: data.parentId ? 'reply' : 'message',
+          parentMessageId: data.parentId
+        }]
+      );
+
+      await vectorStoreService.addDocuments(
+        { type: "organization", organizationId },
+        [{
+          content: cleanContent,
+          userId: ws.userId!,
+          username: user.rows[0].username,
+          timestamp: new Date(),
+          channelName: channelResult.rows[0].name,
+          messageType: data.parentId ? 'reply' : 'message',
+          parentMessageId: data.parentId
+        }]
+      );
+
+      // Process the message using existing AI response logic
+      const aiResponse = await this.generateBotResponse(
+        cleanContent,
+        data.channelId,
+        organizationId,
+        botUser.rows[0].id,
+        botUser.rows[0].username,
+        data
+      );
+
+      // Save and broadcast the bot's response
+      const responseId = crypto.randomUUID();
+      await pool.query(
+        "INSERT INTO messages (id, content, user_id, channel_id, parent_id, created_at, bot_message) VALUES ($1, $2, $3, $4, $5, NOW(), true)",
+        [responseId, aiResponse, botUser.rows[0].id, data.channelId, data.id]
+      );
+
+      await this.broadcastToChannel(data.channelId, {
+        type: "message",
+        id: responseId,
+        content: aiResponse,
+        senderId: botUser.rows[0].id,
+        senderName: botUser.rows[0].username,
+        channelId: data.channelId,
+        isDM: false,
+        parentId: data.id,
+        timestamp: Date.now()
+      });
+
+    } catch (error) {
+      console.error("Error handling bot message:", error);
+      ws.send(JSON.stringify({ 
+        type: "error", 
+        error: "Failed to process bot message" 
+      }));
+    }
+  }
+
+  private async generateBotResponse(
+    content: string,
+    channelId: string,
+    organizationId: string,
+    botUserId: string,
+    botUsername: string,
+    triggeringMessage: ChatMessage
+  ): Promise<string> {
+    try {
+      // Get relevant context from both channel and organization vector stores
+      const [channelStore, organizationStore] = await Promise.all([
+        vectorStoreService.getVectorStore({ type: "channel", channelId }),
+        vectorStoreService.getVectorStore({
+          type: "organization",
+          organizationId
+        })
+      ]);
+
+      // Search both stores
+      const searchResults = await Promise.all([
+        channelStore.similaritySearch(content, 50),
+        organizationStore.similaritySearch(content, 50)
+      ]);
+
+      // Combine and deduplicate results
+      const allResults = searchResults
+        .flat()
+        .filter((value, index, self) =>
+          index === self.findIndex((t) => t.pageContent === value.pageContent)
+        );
+
+      // Format chat history
+      const formattedHistory = allResults
+        .map(result => {
+          const timestamp = new Date(result.metadata.timestamp);
+          const formattedDate = timestamp.toLocaleDateString();
+          const formattedTime = timestamp.toLocaleTimeString();
+          return `[${formattedDate} ${formattedTime}] ${result.metadata.username} in #${result.metadata.channelName}: ${result.pageContent}`;
+        })
+        .sort((a, b) => {
+          const timeA = new Date(a.match(/\[(.*?)\]/)?.[1] || '').getTime();
+          const timeB = new Date(b.match(/\[(.*?)\]/)?.[1] || '').getTime();
+          return timeA - timeB;
+        })
+        .join('\n');
+
+      const openAIClient = createOpenAIClient();
+      const completion = await openAIClient.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `You are a helpful AI assistant in this chat. When users mention you with @bot, provide direct, conversational responses in the channel.
+
+Guidelines for responses:
+- Keep responses concise and focused on the question asked
+- Use the same context-aware features available in the search interface
+- Match the conversation's tone and formality level
+- Reference relevant channel history when appropriate
+- Don't use AI-like preambles (e.g., "As an AI assistant...")
+- If the question is unclear, ask for clarification
+- Stay within the scope of the channel's context
+- Maintain a helpful but professional tone
+
+Remember:
+- You're responding directly in the channel, visible to all members
+- Use channel history for context just like in the search interface
+- Keep responses proportional to the question length`
+          },
+          {
+            role: "user",
+            content: `Question: "${content}"
+
+Available Chat History:
+${formattedHistory}`
+          }
+        ],
+        model: "gpt-4-0125-preview",
+        temperature: 0.7,
+        max_tokens: 500,
+        presence_penalty: 0.2,
+        frequency_penalty: 0.4,
+        top_p: 0.9,
+      });
+
+      return completion.choices[0].message.content || "I couldn't generate a response at this time.";
+    } catch (error) {
+      console.error("Error generating bot response:", error);
+      throw error;
     }
   }
 }

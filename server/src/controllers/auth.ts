@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
-import { AuthService } from '../services/auth';
-import { CreateUserDTO, LoginDTO } from '../models/user';
+import { Request, Response } from "express";
+import { AuthService } from "../services/auth";
+import { CreateUserDTO, LoginDTO } from "../models/user";
 
 export class AuthController {
   static async signup(req: Request, res: Response): Promise<void> {
@@ -9,14 +9,14 @@ export class AuthController {
 
       // Validate required fields
       if (!userData.email || !userData.password || !userData.username) {
-        res.status(400).json({ error: 'All fields are required' });
+        res.status(400).json({ error: "All fields are required" });
         return;
       }
 
       // Check if user already exists
       const existingUser = await AuthService.findUserByEmail(userData.email);
       if (existingUser) {
-        res.status(400).json({ error: 'Email already registered' });
+        res.status(400).json({ error: "Email already registered" });
         return;
       }
 
@@ -26,8 +26,8 @@ export class AuthController {
 
       res.status(201).json({ user, token });
     } catch (error) {
-      console.error('Signup error:', error);
-      res.status(500).json({ error: 'Error creating user' });
+      console.error("Signup error:", error);
+      res.status(500).json({ error: "Error creating user" });
     }
   }
 
@@ -37,21 +37,21 @@ export class AuthController {
 
       // Validate required fields
       if (!credentials.email || !credentials.password) {
-        res.status(400).json({ error: 'Email and password are required' });
+        res.status(400).json({ error: "Email and password are required" });
         return;
       }
 
       // Attempt login
       const result = await AuthService.login(credentials);
       if (!result) {
-        res.status(401).json({ error: 'Invalid email or password' });
+        res.status(401).json({ error: "Invalid email or password" });
         return;
       }
 
       res.json(result);
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ error: 'Error during login' });
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Error during login" });
     }
   }
-} 
+}

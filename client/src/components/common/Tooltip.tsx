@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState } from "react";
 
 interface TooltipProps {
   content: string;
@@ -13,6 +13,11 @@ export function Tooltip({ content, children }: TooltipProps) {
       <div
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
+        onClick={() => {
+          setIsVisible(true);
+          // Auto-hide after 2 seconds
+          setTimeout(() => setIsVisible(false), 4000);
+        }}
       >
         {children}
       </div>
@@ -23,4 +28,4 @@ export function Tooltip({ content, children }: TooltipProps) {
       )}
     </div>
   );
-} 
+}

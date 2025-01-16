@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
 interface NavigationProps {
   showAuthButtons?: boolean;
@@ -10,7 +10,10 @@ export function Navigation({ showAuthButtons = false }: NavigationProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="text-xl font-bold text-primary-500 hover:text-primary-600 transition-colors">
+            <Link
+              to="/"
+              className="text-xl font-bold text-primary-500 hover:text-primary-600 transition-colors"
+            >
               ChatGenius
             </Link>
           </div>
@@ -34,4 +37,4 @@ export function Navigation({ showAuthButtons = false }: NavigationProps) {
       </div>
     </nav>
   );
-} 
+}

@@ -12,14 +12,18 @@
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
+    "@headlessui/react": "^2.2.0",
+    "@heroicons/react": "^2.2.0",
     "@tanstack/react-query": "^5.63.0",
     "@types/lru-cache": "^7.10.10",
+    "@types/react-transition-group": "^4.4.12",
     "framer-motion": "^11.16.0",
     "lru-cache": "^11.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-intersection-observer": "^9.14.1",
     "react-router-dom": "^6.22.0",
+    "react-transition-group": "^4.4.5",
     "socket.io-client": "^4.8.1",
     "uuid": "^11.0.5",
     "zustand": "^5.0.3"

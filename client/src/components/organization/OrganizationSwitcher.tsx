@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useOrganization } from '../../contexts/OrganizationContext';
-import { OrganizationDialog } from './OrganizationDialog';
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { useOrganization } from "../../contexts/OrganizationContext";
+import { OrganizationDialog } from "./OrganizationDialog";
 
 export const OrganizationSwitcher: React.FC = () => {
   const { currentOrganization, userRole } = useOrganization();
   const [showOrgDialog, setShowOrgDialog] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const isAdmin = userRole === 'owner' || userRole === 'admin';
+  const isAdmin = userRole === "owner" || userRole === "admin";
 
   if (!currentOrganization) return null;
 
@@ -20,12 +20,17 @@ export const OrganizationSwitcher: React.FC = () => {
       >
         <span>{currentOrganization.name}</span>
         <svg
-          className={`w-5 h-5 transition-transform ${showDropdown ? 'transform rotate-180' : ''}`}
+          className={`w-5 h-5 transition-transform ${showDropdown ? "transform rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </button>
 
@@ -42,7 +47,7 @@ export const OrganizationSwitcher: React.FC = () => {
             >
               Switch Organization
             </button>
-            
+
             {isAdmin && (
               <Link
                 to="/organization/settings"
@@ -63,4 +68,4 @@ export const OrganizationSwitcher: React.FC = () => {
       />
     </div>
   );
-} 
+};

@@ -1,4 +1,4 @@
-import { API_URL } from './config';
+import { API_URL } from "./config";
 
 export interface User {
   id: string;
@@ -8,73 +8,86 @@ export interface User {
 
 export const startDM = async (token: string, targetUserId: string) => {
   const response = await fetch(`${API_URL}/dm/start`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ targetUserId }),
   });
-  
+
   if (!response.ok) {
-    throw new Error('Failed to start DM');
+    throw new Error("Failed to start DM");
   }
-  
+
   return response.json();
 };
 
 export const getDMs = async (token: string) => {
   const response = await fetch(`${API_URL}/dm/list`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
-  
+
   if (!response.ok) {
-    throw new Error('Failed to get DMs');
+    throw new Error("Failed to get DMs");
   }
-  
+
   return response.json();
 };
 
-export const searchUsers = async (token: string, query: string, organizationId: string) => {
-  const response = await fetch(`${API_URL}/users/search?q=${encodeURIComponent(query)}&organization_id=${encodeURIComponent(organizationId)}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
+export const searchUsers = async (
+  token: string,
+  query: string,
+  organizationId: string,
+) => {
+  const response = await fetch(
+    `${API_URL}/users/search?q=${encodeURIComponent(query)}&organization_id=${encodeURIComponent(organizationId)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  });
-  
+  );
+
   if (!response.ok) {
-    throw new Error('Failed to search users');
+    throw new Error("Failed to search users");
   }
-  
+
   return response.json();
 };
 
 export const getUserPresence = async (token: string, userId: string) => {
   const response = await fetch(`${API_URL}/users/${userId}/presence`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
-  
+
   if (!response.ok) {
-    throw new Error('Failed to get user presence');
+    throw new Error("Failed to get user presence");
   }
-  
+
   return response.json();
 };
 
-export const getOrganizationMemberPresence = async (token: string, organizationId: string) => {
-  const response = await fetch(`${API_URL}/users/organization/${organizationId}/presence`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
+export const getOrganizationMemberPresence = async (
+  token: string,
+  organizationId: string,
+) => {
+  const response = await fetch(
+    `${API_URL}/users/organization/${organizationId}/presence`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  });
-  
+  );
+
   if (!response.ok) {
-    throw new Error('Failed to get organization member presence');
+    throw new Error("Failed to get organization member presence");
   }
-  
+
   return response.json();
-}; 
+};

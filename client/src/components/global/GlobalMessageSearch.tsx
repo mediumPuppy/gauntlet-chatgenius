@@ -1,133 +1,568 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { searchMessages } from '../../services/search';
-import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-
-interface SearchResult {
-  id: string;
-  content: string;
-  createdAt: string;
-  channelId: string | null;
-  dmId: string | null;
-  senderName: string;
-  messageIndex: number;
-  channelName: string | null;
-  dmRecipientName: string | null;
-  parentId?: string | null;
-}
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { searchMessages } from "../../services/search";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { handleBotQuery } from "../../services/ai";
+import { useChannels } from "../../contexts/ChannelContext";
+import { useOrganization } from "../../contexts/OrganizationContext";
+import { Combobox, Transition } from "@headlessui/react";
+import { ChevronUpDownIcon, CheckIcon, ArrowLeftIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { SearchResult, ScopeOption } from "../../types/search";
+import { SearchErrorBoundary } from "./SearchErrorBoundary";
+import styles from "./GlobalMessageSearch.module.css";
+import { CSSTransition, SwitchTransition } from 'react-transition-group';
+import { BotResponse } from "./BotResponse";
 
 export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [isBotMode, setIsBotMode] = useState(false);
+  const [selectedScope, setSelectedScope] = useState<ScopeOption | null>(null);
+  const [scopeQuery, setScopeQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<{
+    message: string;
+    code?: string;
+    retry?: () => void;
+  } | null>(null);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [botMessages, setBotMessages] = useState<Array<{
+    content: string;
+    timestamp: string;
+    isBot: boolean;
+  }>>([]);
+  
   const { token } = useAuth();
   const navigate = useNavigate();
-
+  const { channels } = useChannels();
+  const { currentOrganization } = useOrganization();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleSearch = useCallback(async (input: string) => {
+  // Enhanced scope options with descriptions
+  const scopeOptions: ScopeOption[] = [
+    {
+      id: currentOrganization?.id || 'workspace',
+      name: 'Entire Organization',
+      type: 'workspace',
+      icon: '🏢',
+      description: 'Search across all channels',
+      color: 'bg-blue-50'
+    },
+    ...channels.map(channel => ({
+      id: channel.id,
+      name: channel.name,
+      type: 'channel' as const,
+      icon: '#',
+      description: `Search in #${channel.name}`,
+      color: 'bg-gray-50'
+    }))
+  ];
+
+  // Filter scope options based on search
+  const filteredOptions = scopeQuery === ''
+    ? scopeOptions
+    : scopeOptions.filter((option) =>
+        option.name
+          .toLowerCase()
+          .includes(scopeQuery.toLowerCase())
+      );
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Close on Escape
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      
+      // Focus search input on / key
+      if (e.key === '/' && document.activeElement !== searchInputRef.current) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      // Toggle bot mode on Ctrl+B
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        setIsBotMode(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleError = useCallback((error: unknown, retryFn?: () => void) => {
+    const err = error as { message?: string; code?: string; stack?: string };
+    const message = err.message || "An unexpected error occurred";
+    const code = err.code;
+    
+    setErrorDetails({
+      message,
+      code,
+      retry: retryFn
+    });
+    
+    console.error('[Search Error]:', {
+      message,
+      code,
+      stack: err.stack,
+      timestamp: new Date().toISOString()
+    });
+  }, []);
+
+  const handleSearch = useCallback(
+    async (input: string) => {
+      if (!input.trim()) return;
+      
+      try {
+        setErrorDetails(null);
+        setIsLoading(true);
+        
+        if (!isBotMode) {
+          const data = await searchMessages(token!, input.trim());
+          setResults(data);
+        }
+      } catch (err: unknown) {
+        handleError(err, () => handleSearch(input));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [token, isBotMode, handleError]
+  );
+
+  // Add cleanup on close
+  const handleClose = useCallback(() => {
+    setBotMessages([]); // Clear conversation history
+    setQuery("");
+    onClose();
+  }, [onClose]);
+
+  const handleBotSubmit = async () => {
+    if (!query.trim() || !selectedScope) return;
+
     try {
-      setError(null);
-      const data = await searchMessages(token!, input.trim());
-      setResults(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to search messages');
+      setErrorDetails(null);
+      setIsSending(true);
+      setIsExpanded(true);
+      
+      const currentQuery = query;
+      setQuery("");
+      
+      // Add user message to conversation
+      const newUserMessage = {
+        content: currentQuery,
+        timestamp: new Date().toISOString(),
+        isBot: false
+      };
+      setBotMessages(prev => [...prev, newUserMessage]);
+      scrollToBottom();
+
+      // Pass the current conversation history to the bot
+      const response = await handleBotQuery(token!, {
+        content: currentQuery.trim(),
+        ...(selectedScope.type === 'channel' 
+          ? { channelId: selectedScope.id }
+          : { workspaceId: selectedScope.id }
+        ),
+        conversationHistory: botMessages // Pass existing conversation
+      });
+
+      // Add bot response to conversation
+      setBotMessages(prev => [...prev, {
+        content: response.answer,
+        timestamp: new Date().toISOString(),
+        isBot: true
+      }]);
+      scrollToBottom();
+
+    } catch (err: unknown) {
+      handleError(err, handleBotSubmit);
+    } finally {
+      setIsSending(false);
     }
-  }, [token]);
+  };
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
     setQuery(newValue);
 
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = setTimeout(() => {
-      if (newValue.trim() !== '') {
-        handleSearch(newValue);
-      } else {
-        setResults([]);
+    if (!isBotMode) {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
       }
-    }, 300);
+
+      debounceRef.current = setTimeout(() => {
+        if (newValue.trim() !== "") {
+          handleSearch(newValue);
+        } else {
+          setResults([]);
+        }
+      }, 300);
+    }
   };
 
   const navigateToMessage = (result: SearchResult) => {
-    // Debug logs
-    console.log('Search Result:', result);
-    console.log('Parent ID:', result.parentId);
-    console.log('Message ID:', result.id);
-    
-    // If it's a reply, use the parentId for highlighting
     const highlightId = result.parentId || result.id;
-    
-    const path = result.channelId 
+
+    const path = result.channelId
       ? `/chat/channel/${result.channelId}`
       : `/chat/dm/${result.dmId}`;
-    
-    // Store the message to highlight in sessionStorage
-    sessionStorage.setItem('highlightMessage', JSON.stringify({
-      id: highlightId,
-      index: result.messageIndex,
-      fromSearch: true
-    }));
 
-    // Navigate and close search modal
+    sessionStorage.setItem(
+      "highlightMessage",
+      JSON.stringify({
+        id: highlightId,
+        index: result.messageIndex,
+        fromSearch: true,
+      }),
+    );
+
     navigate(path);
     onClose();
   };
 
-  return (
-    <div className="space-y-4">
-      <input
-        type="text"
-        placeholder="Search messages..."
-        value={query}
-        onChange={handleInputChange}
-        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-      />
-
-      {error && <div className="text-red-500">{error}</div>}
-
-      {results.length === 0 && query.trim() !== '' && (
-        <p className="text-gray-500">No messages found</p>
-      )}
-
-      <ul className="space-y-2">
-        {results.map(msg => (
-          <li 
-            key={msg.id} 
-            onClick={() => navigateToMessage(msg)}
-            className="p-3 bg-gray-100 rounded-md hover:bg-gray-200 cursor-pointer transition"
-          >
-            <div className="flex flex-col space-y-1">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2">
-                  <strong className="text-primary-600">{msg.senderName}</strong>
-                  <span className="text-sm text-gray-500">in</span>
-                  <span className="text-sm font-medium text-gray-700">
-                    {msg.channelName ? (
-                      <span className="flex items-center">
-                        <span className="text-gray-400 mr-1">#</span>
-                        {msg.channelName}
-                      </span>
-                    ) : (
-                      <span className="flex items-center">
-                        <span className="text-gray-400 mr-1">@</span>
-                        {msg.dmRecipientName}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <span className="text-sm text-gray-500">
-                  {new Date(msg.createdAt).toLocaleString()}
-                </span>
-              </div>
-              <p className="text-gray-700 truncate">{msg.content}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
+  // Loading skeleton for results
+  const ResultSkeleton = () => (
+    <div className={`${styles.resultItem} ${styles.skeleton}`}>
+      <div className={styles.resultHeader}>
+        <div className="h-4 w-24 bg-gray-300 rounded"></div>
+        <div className="h-4 w-32 bg-gray-300 rounded"></div>
+      </div>
+      <div className="space-y-2 mt-2">
+        <div className="h-4 w-full bg-gray-300 rounded"></div>
+        <div className="h-4 w-3/4 bg-gray-300 rounded"></div>
+      </div>
     </div>
+  );
+
+  const handleBackToSearch = () => {
+    setIsExpanded(false);
+    setQuery("");
+    setResults([]);
+  };
+
+  const scrollToBottom = useCallback(() => {
+    if (chatContainerRef.current) {
+      const container = chatContainerRef.current;
+      container.scrollTop = container.scrollHeight;
+    }
+  }, []);
+
+  // Force scroll position after any content changes
+  useEffect(() => {
+    if (botMessages.length > 0) {
+      // Force immediate scroll without smooth behavior
+      if (chatContainerRef.current) {
+        chatContainerRef.current.style.scrollBehavior = 'auto';
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        chatContainerRef.current.style.scrollBehavior = 'smooth';
+      }
+    }
+  }, [botMessages]);
+
+  const handleScopeSelect = (scope: ScopeOption) => {
+    setSelectedScope(scope);
+    setScopeQuery(''); // Clear the search query
+    setIsInputFocused(false); // Close dropdown
+    // Small delay to ensure the dropdown closes before focusing the input
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 50);
+  };
+
+  return (
+    <SearchErrorBoundary>
+      {isExpanded ? (
+        <div className={styles.expandedContainer}>
+          <div className={styles.expandedContent}>
+            <div className={styles.expandedHeader}>
+              <button
+                onClick={handleBackToSearch}
+                className={styles.backButton}
+                aria-label="Back to search"
+              >
+                <ArrowLeftIcon className="h-6 w-6" />
+              </button>
+              <button
+                onClick={handleClose}
+                className={styles.backButton}
+                aria-label="Close search"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className={styles.expandedBody}>
+              <div className={styles.chatContainer} ref={chatContainerRef}>
+                {botMessages.map((message, index) => (
+                  <div key={index} className={styles.botResponseExpanded}>
+                    <BotResponse
+                      content={message.content}
+                      timestamp={message.timestamp}
+                      isBot={message.isBot}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className={styles.expandedFooter}>
+              <div className="flex space-x-2">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Ask a follow-up question..."
+                  value={query}
+                  onChange={handleInputChange}
+                  className={styles.searchInput}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isSending) {
+                      e.preventDefault();
+                      handleBotSubmit();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleBotSubmit}
+                  disabled={!query.trim() || isSending}
+                  className={styles.sendButton}
+                  aria-label="Send message"
+                >
+                  {isSending ? 'Sending...' : 'Send'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className={styles.searchContainer}>
+          <div className={styles.modeToggle}>
+            <button
+              role="tab"
+              aria-selected={!isBotMode}
+              onClick={() => {
+                setIsBotMode(false);
+                setQuery(""); // Clear the search query
+                setResults([]); // Clear the search results
+              }}
+              className={`${styles.modeButton} ${!isBotMode ? styles.modeButtonActive : styles.modeButtonInactive}`}
+            >
+              <span className="sr-only">Switch to </span>
+              Search
+            </button>
+            <button
+              role="tab"
+              aria-selected={isBotMode}
+              onClick={() => {
+                setIsBotMode(true);
+                setQuery(""); // Clear the search query
+                setResults([]); // Clear the search results
+              }}
+              className={`${styles.modeButton} ${isBotMode ? styles.modeButtonActive : styles.modeButtonInactive}`}
+            >
+              <span className="sr-only">Switch to </span>
+              Ask Bot
+            </button>
+          </div>
+
+          <SwitchTransition mode="out-in">
+            <CSSTransition
+              key={isBotMode ? 'bot' : 'search'}
+              timeout={300}
+              classNames={{
+                enter: styles.modeEnter,
+                enterActive: styles.modeEnterActive,
+                exit: styles.modeExit,
+                exitActive: styles.modeExitActive
+              }}
+            >
+              <div className={styles.modeSwitcher}>
+                <div className={`${styles.modeContent} ${styles.modeTransition} min-h-[140px]`}>
+                  {isBotMode ? (
+                    <div className="space-y-4">
+                      <div className={styles.scopeSelector}>
+                        <Combobox value={selectedScope} onChange={handleScopeSelect}>
+                          <div className="relative">
+                            <div className={styles.scopeInput}>
+                              <Combobox.Input
+                                className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 bg-transparent"
+                                displayValue={(scope: ScopeOption) => scope?.name || ''}
+                                onChange={(event) => setScopeQuery(event.target.value)}
+                                placeholder="Select scope..."
+                                onFocus={() => setIsInputFocused(true)}
+                                onBlur={() => setIsInputFocused(false)}
+                              />
+                              <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                                <ChevronUpDownIcon
+                                  className="h-5 w-5 text-gray-400"
+                                  aria-hidden="true"
+                                />
+                              </Combobox.Button>
+                            </div>
+                            <Transition
+                              show={isInputFocused || scopeQuery !== ''}
+                              leave="transition ease-in duration-100"
+                              leaveFrom="opacity-100"
+                              leaveTo="opacity-0"
+                              afterLeave={() => setScopeQuery('')}
+                            >
+                              <Combobox.Options className={styles.optionsList}>
+                                {filteredOptions.map((option) => (
+                                  <Combobox.Option
+                                    key={option.id}
+                                    className={({ selected }) =>
+                                      `${styles.option} ${selected ? styles.optionActive : styles.optionInactive} ${option.color}`
+                                    }
+                                    value={option}
+                                  >
+                                    {({ selected }) => (
+                                      <>
+                                        <div className={styles.optionIcon}>
+                                          <span>{option.icon}</span>
+                                        </div>
+                                        <div className={styles.optionText}>
+                                          <span className={styles.optionName}>{option.name}</span>
+                                          <span className={styles.optionDescription}>
+                                            {option.description}
+                                          </span>
+                                        </div>
+                                        {selected && (
+                                          <CheckIcon className="h-5 w-5 text-primary-600 absolute right-2" />
+                                        )}
+                                      </>
+                                    )}
+                                  </Combobox.Option>
+                                ))}
+                              </Combobox.Options>
+                            </Transition>
+                          </div>
+                        </Combobox>
+                      </div>
+                      <div className={`flex space-x-2 ${styles.slideRight}`}>
+                        <input
+                          ref={searchInputRef}
+                          type="text"
+                          placeholder="Ask a question... (Press Enter to send)"
+                          value={query}
+                          onChange={handleInputChange}
+                          className={`${styles.searchInput} ${isLoading ? styles.loadingPulse : ''}`}
+                          aria-label="Bot query input"
+                          aria-busy={isLoading}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && isBotMode && !isSending) {
+                              e.preventDefault();
+                              handleBotSubmit();
+                            }
+                          }}
+                        />
+                        {isBotMode && (
+                          <button
+                            onClick={handleBotSubmit}
+                            disabled={!selectedScope || isSending}
+                            className={styles.sendButton}
+                            aria-label="Send query to bot"
+                            aria-busy={isSending}
+                          >
+                            {isSending ? (
+                              <span className="flex items-center space-x-2" aria-hidden="true">
+                                <span className={styles.loadingSpinner} />
+                                <span>Sending</span>
+                              </span>
+                            ) : (
+                              'Send'
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Search messages... (Press / to focus)"
+                        value={query}
+                        onChange={handleInputChange}
+                        className={styles.searchInput}
+                        aria-label="Search input"
+                        aria-busy={isLoading}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CSSTransition>
+          </SwitchTransition>
+
+          {errorDetails && (
+            <div className={`${styles.errorMessage} ${styles.fadeIn}`}>
+              <p>{errorDetails.message}</p>
+              {errorDetails.retry && (
+                <button
+                  onClick={errorDetails.retry}
+                  className={styles.retryButton}
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className={styles.resultsContainer}>
+            {isLoading ? (
+              <>
+                <ResultSkeleton />
+                <ResultSkeleton />
+                <ResultSkeleton />
+              </>
+            ) : (
+              <>
+                {!isBotMode && results.length === 0 && query.trim() !== "" && (
+                  <p className={`${styles.noResults} ${styles.fadeIn}`}>
+                    No messages found
+                  </p>
+                )}
+                {results.map((msg) => (
+                  <div
+                    key={msg.id}
+                    onClick={() => navigateToMessage(msg)}
+                    className={`${styles.resultItem} ${styles.fadeIn}`}
+                  >
+                    <div className={styles.resultHeader}>
+                      <div className="flex items-center space-x-2">
+                        <span className={styles.resultSender}>{msg.senderName}</span>
+                        <span className={styles.resultMeta}>in</span>
+                        <span className={styles.resultMeta}>
+                          {msg.channelName ? `#${msg.channelName}` : `@${msg.dmRecipientName}`}
+                        </span>
+                      </div>
+                      <span className={styles.resultMeta}>
+                        {new Date(msg.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className={styles.resultContent}>{msg.content}</p>
+                  </div>
+                ))}
+                {isBotMode && results.length > 0 && (
+                  <BotResponse
+                    content={results[0].content}
+                    timestamp={results[0].createdAt}
+                    isBot={true}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </SearchErrorBoundary>
   );
 }
