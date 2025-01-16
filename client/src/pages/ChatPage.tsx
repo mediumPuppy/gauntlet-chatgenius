@@ -24,7 +24,7 @@ interface DMInfo {
 const ChatPageContent: React.FC = memo(() => {
   const { logout } = useAuth();
   const { currentChannel } = useChannels();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { dmId } = useParams<{ dmId?: string }>();
   const [currentDM, setCurrentDM] = useState<DMInfo | null>(null);
@@ -136,6 +136,11 @@ const ChatPageContent: React.FC = memo(() => {
       setIsTogglingAI(false);
     }
   };
+
+  useEffect(() => {
+    // Close sidebar on mobile when route changes
+    setIsSidebarOpen(false);
+  }, [location.pathname]); // Add location from useLocation hook
 
   return (
     <div className="flex h-screen relative">
