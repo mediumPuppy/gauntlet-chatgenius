@@ -13,13 +13,6 @@ import styles from "./GlobalMessageSearch.module.css";
 import { CSSTransition, SwitchTransition } from 'react-transition-group';
 import { BotResponse } from "./BotResponse";
 
-// Add new interface for bot messages
-interface BotMessage {
-  content: string;
-  timestamp: string;
-  isBot: boolean;
-}
-
 export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -35,7 +28,11 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
   } | null>(null);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [botMessages, setBotMessages] = useState<BotMessage[]>([]);
+  const [botMessages, setBotMessages] = useState<Array<{
+    content: string;
+    timestamp: string;
+    isBot: boolean;
+  }>>([]);
   
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -49,7 +46,7 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
   const scopeOptions: ScopeOption[] = [
     {
       id: currentOrganization?.id || 'workspace',
-      name: 'Entire Workspace',
+      name: 'Entire Organization',
       type: 'workspace',
       icon: '🏢',
       description: 'Search across all channels',
@@ -99,9 +96,10 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const handleError = useCallback((error: any, retryFn?: () => void) => {
-    const message = error?.message || "An unexpected error occurred";
-    const code = error?.code;
+  const handleError = useCallback((error: unknown, retryFn?: () => void) => {
+    const err = error as { message?: string; code?: string; stack?: string };
+    const message = err.message || "An unexpected error occurred";
+    const code = err.code;
     
     setErrorDetails({
       message,
@@ -112,7 +110,7 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
     console.error('[Search Error]:', {
       message,
       code,
-      stack: error?.stack,
+      stack: err.stack,
       timestamp: new Date().toISOString()
     });
   }, []);
@@ -129,7 +127,7 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
           const data = await searchMessages(token!, input.trim());
           setResults(data);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         handleError(err, () => handleSearch(input));
       } finally {
         setIsLoading(false);
@@ -137,6 +135,13 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
     },
     [token, isBotMode, handleError]
   );
+
+  // Add cleanup on close
+  const handleClose = useCallback(() => {
+    setBotMessages([]); // Clear conversation history
+    setQuery("");
+    onClose();
+  }, [onClose]);
 
   const handleBotSubmit = async () => {
     if (!query.trim() || !selectedScope) return;
@@ -149,21 +154,26 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
       const currentQuery = query;
       setQuery("");
       
-      setBotMessages(prev => [...prev, {
+      // Add user message to conversation
+      const newUserMessage = {
         content: currentQuery,
         timestamp: new Date().toISOString(),
         isBot: false
-      }]);
+      };
+      setBotMessages(prev => [...prev, newUserMessage]);
       scrollToBottom();
 
+      // Pass the current conversation history to the bot
       const response = await handleBotQuery(token!, {
         content: currentQuery.trim(),
         ...(selectedScope.type === 'channel' 
           ? { channelId: selectedScope.id }
           : { workspaceId: selectedScope.id }
-        )
+        ),
+        conversationHistory: botMessages // Pass existing conversation
       });
 
+      // Add bot response to conversation
       setBotMessages(prev => [...prev, {
         content: response.answer,
         timestamp: new Date().toISOString(),
@@ -171,7 +181,7 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
       }]);
       scrollToBottom();
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       handleError(err, handleBotSubmit);
     } finally {
       setIsSending(false);
@@ -280,7 +290,7 @@ export function GlobalMessageSearch({ onClose }: { onClose: () => void }) {
                 <ArrowLeftIcon className="h-6 w-6" />
               </button>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className={styles.backButton}
                 aria-label="Close search"
               >

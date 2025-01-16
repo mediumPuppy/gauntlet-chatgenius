@@ -14,7 +14,8 @@ export function BotResponse({ content, timestamp, isBot }: BotResponseProps) {
           <span className={styles.botIcon}>{isBot ? '🤖' : '👤'}</span>
           <span className={styles.botName}>{isBot ? 'AI Assistant' : 'You'}</span>
         </div>
-        <span className={styles.timestamp}>{timestamp}</span>
+        <span className={styles.timestamp}>{new Date(timestamp).toLocaleTimeString()}
+        </span>
       </div>
       <div className={styles.botContent}>
         {content}

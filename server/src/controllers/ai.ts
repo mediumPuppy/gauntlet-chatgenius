@@ -114,6 +114,11 @@ export async function handleBotQuery(req: AuthRequest, res: Response) {
           role: "user" as const,
           content: `Question: "${content}"
 
+Current Conversation:
+${req.body.conversationHistory?.map((msg: { timestamp: string; isBot: boolean; content: string }) => 
+  `[${new Date(msg.timestamp).toLocaleString()}] ${msg.isBot ? 'Bot' : 'User'}: ${msg.content}`
+).join('\n') || 'No previous conversation'}
+
 Available Chat History:
 ${formattedHistory}`
         }

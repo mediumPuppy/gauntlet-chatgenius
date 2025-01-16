@@ -33,6 +33,11 @@ interface BotQueryParams {
   content: string;
   channelId?: string;
   workspaceId?: string;
+  conversationHistory?: Array<{
+    content: string;
+    timestamp: string;
+    isBot: boolean;
+  }>;
 }
 
 export const handleBotQuery = async (

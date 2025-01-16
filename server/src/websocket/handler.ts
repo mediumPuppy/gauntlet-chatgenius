@@ -13,6 +13,21 @@ import { channelQueries } from "../models/channel";
 import { userQueries } from "../models/user";
 import pool from "../config/database";
 import { vectorStoreService } from "../services/vectorStore";
+import { OpenAI } from "openai";
+import crypto from "crypto";
+import { createOpenAIClient } from "../utils/openai";
+
+// Update WebSocketMessage type to include bot response fields
+interface BotResponseMessage extends WebSocketMessage {
+  id: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  channelId: string;
+  isDM: boolean;
+  parentId?: string;
+  timestamp: number;
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const clients = new Map<string, Set<WebSocketClient>>();
@@ -230,7 +245,10 @@ export class WebSocketHandler {
         }
 
         const organizationId = channelCheck.rows[0].organization_id;
-        console.log(organizationId,'jl');
+
+        // Check for @bot mention before saving message
+        const isBotMention = data.content.trim().startsWith('@bot');
+
         // Save message and broadcast first
         await pool.query(
           "INSERT INTO messages (id, content, user_id, channel_id, parent_id, created_at) VALUES ($1, $2, $3, $4, $5::uuid, NOW())",
@@ -242,6 +260,11 @@ export class WebSocketHandler {
           type: "message",
           ...message,
         });
+
+        // Handle bot mention if present
+        if (isBotMention) {
+          await this.handleBotMessage(ws, data, organizationId);
+        }
 
         // Only update vector stores if we have a valid organizationId
         if (organizationId) {
@@ -287,7 +310,7 @@ export class WebSocketHandler {
         }
       }
     } catch (error) {
-      console.error("Error handling chat message:", error);
+      console.error("Error in handleChatMessage:", error);
       ws.send(JSON.stringify({ type: "error", error: "Failed to process message" }));
     }
   }
@@ -320,7 +343,7 @@ export class WebSocketHandler {
 
   private async broadcastToChannel(
     channelId: string,
-    message: WebSocketMessage,
+    message: WebSocketMessage | BotResponseMessage,
   ) {
     const channelClients = clients.get(channelId) || new Set();
     const messageStr = JSON.stringify(message);
@@ -519,6 +542,198 @@ export class WebSocketHandler {
       await this.broadcastToDM(messageData.channelId, messageData);
     } else {
       await this.broadcastToChannel(messageData.channelId, messageData);
+    }
+  }
+
+  private async handleBotMessage(ws: WebSocketClient, data: ChatMessage, organizationId: string) {
+    try {
+      // Get bot user first to ensure it exists
+      const botUser = await pool.query(
+        "SELECT id, username FROM users WHERE is_bot = true LIMIT 1"
+      );
+
+      if (botUser.rows.length === 0) {
+        console.error("Bot user not found");
+        ws.send(JSON.stringify({ 
+          type: "error", 
+          error: "Bot user not configured" 
+        }));
+        return;
+      }
+
+      // Ensure bot has AI enabled
+      await pool.query(
+        "UPDATE users SET ai_enabled = true WHERE id = $1",
+        [botUser.rows[0].id]
+      );
+
+      // Remove @bot from the content
+      const cleanContent = data.content.replace(/^@bot\s+/, '').trim();
+      
+      // Get channel context for vector store
+      const channelResult = await pool.query(
+        "SELECT name FROM channels WHERE id = $1",
+        [data.channelId]
+      );
+
+      const user = await pool.query(
+        "SELECT username FROM users WHERE id = $1",
+        [ws.userId]
+      );
+
+      // Update vector stores first to include the user's question
+      await vectorStoreService.addDocuments(
+        { type: "channel", channelId: data.channelId },
+        [{
+          content: cleanContent,
+          userId: ws.userId!,
+          username: user.rows[0].username,
+          timestamp: new Date(),
+          channelName: channelResult.rows[0].name,
+          messageType: data.parentId ? 'reply' : 'message',
+          parentMessageId: data.parentId
+        }]
+      );
+
+      await vectorStoreService.addDocuments(
+        { type: "organization", organizationId },
+        [{
+          content: cleanContent,
+          userId: ws.userId!,
+          username: user.rows[0].username,
+          timestamp: new Date(),
+          channelName: channelResult.rows[0].name,
+          messageType: data.parentId ? 'reply' : 'message',
+          parentMessageId: data.parentId
+        }]
+      );
+
+      // Process the message using existing AI response logic
+      const aiResponse = await this.generateBotResponse(
+        cleanContent,
+        data.channelId,
+        organizationId,
+        botUser.rows[0].id,
+        botUser.rows[0].username,
+        data
+      );
+
+      // Save and broadcast the bot's response
+      const responseId = crypto.randomUUID();
+      await pool.query(
+        "INSERT INTO messages (id, content, user_id, channel_id, parent_id, created_at, bot_message) VALUES ($1, $2, $3, $4, $5, NOW(), true)",
+        [responseId, aiResponse, botUser.rows[0].id, data.channelId, data.id]
+      );
+
+      await this.broadcastToChannel(data.channelId, {
+        type: "message",
+        id: responseId,
+        content: aiResponse,
+        senderId: botUser.rows[0].id,
+        senderName: botUser.rows[0].username,
+        channelId: data.channelId,
+        isDM: false,
+        parentId: data.id,
+        timestamp: Date.now()
+      });
+
+    } catch (error) {
+      console.error("Error handling bot message:", error);
+      ws.send(JSON.stringify({ 
+        type: "error", 
+        error: "Failed to process bot message" 
+      }));
+    }
+  }
+
+  private async generateBotResponse(
+    content: string,
+    channelId: string,
+    organizationId: string,
+    botUserId: string,
+    botUsername: string,
+    triggeringMessage: ChatMessage
+  ): Promise<string> {
+    try {
+      // Get relevant context from both channel and organization vector stores
+      const [channelStore, organizationStore] = await Promise.all([
+        vectorStoreService.getVectorStore({ type: "channel", channelId }),
+        vectorStoreService.getVectorStore({
+          type: "organization",
+          organizationId
+        })
+      ]);
+
+      // Search both stores
+      const searchResults = await Promise.all([
+        channelStore.similaritySearch(content, 50),
+        organizationStore.similaritySearch(content, 50)
+      ]);
+
+      // Combine and deduplicate results
+      const allResults = searchResults
+        .flat()
+        .filter((value, index, self) =>
+          index === self.findIndex((t) => t.pageContent === value.pageContent)
+        );
+
+      // Format chat history
+      const formattedHistory = allResults
+        .map(result => {
+          const timestamp = new Date(result.metadata.timestamp);
+          const formattedDate = timestamp.toLocaleDateString();
+          const formattedTime = timestamp.toLocaleTimeString();
+          return `[${formattedDate} ${formattedTime}] ${result.metadata.username} in #${result.metadata.channelName}: ${result.pageContent}`;
+        })
+        .sort((a, b) => {
+          const timeA = new Date(a.match(/\[(.*?)\]/)?.[1] || '').getTime();
+          const timeB = new Date(b.match(/\[(.*?)\]/)?.[1] || '').getTime();
+          return timeA - timeB;
+        })
+        .join('\n');
+
+      const openAIClient = createOpenAIClient();
+      const completion = await openAIClient.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `You are a helpful AI assistant in this chat. When users mention you with @bot, provide direct, conversational responses in the channel.
+
+Guidelines for responses:
+- Keep responses concise and focused on the question asked
+- Use the same context-aware features available in the search interface
+- Match the conversation's tone and formality level
+- Reference relevant channel history when appropriate
+- Don't use AI-like preambles (e.g., "As an AI assistant...")
+- If the question is unclear, ask for clarification
+- Stay within the scope of the channel's context
+- Maintain a helpful but professional tone
+
+Remember:
+- You're responding directly in the channel, visible to all members
+- Use channel history for context just like in the search interface
+- Keep responses proportional to the question length`
+          },
+          {
+            role: "user",
+            content: `Question: "${content}"
+
+Available Chat History:
+${formattedHistory}`
+          }
+        ],
+        model: "gpt-4-0125-preview",
+        temperature: 0.7,
+        max_tokens: 500,
+        presence_penalty: 0.2,
+        frequency_penalty: 0.4,
+        top_p: 0.9,
+      });
+
+      return completion.choices[0].message.content || "I couldn't generate a response at this time.";
+    } catch (error) {
+      console.error("Error generating bot response:", error);
+      throw error;
     }
   }
 }
