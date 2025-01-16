@@ -52,7 +52,7 @@ INSERT INTO organization_members (organization_id, user_id, role)
 SELECT 
     organizations.id,
     users.id,
-    'MEMBER'
+    'USER'
 FROM organizations 
 CROSS JOIN users 
 WHERE users.email = 'bot@chatgenius.local';
