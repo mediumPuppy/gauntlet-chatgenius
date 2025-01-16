@@ -134,11 +134,7 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({
               <button
                 onClick={handleCreateOrg}
                 disabled={!newOrgName.trim() || isCreating}
-                className={`px-4 py-2 rounded-md text-white font-medium ${
-                  !newOrgName.trim() || isCreating
-                    ? "bg-primary-300 cursor-not-allowed"
-                    : "bg-primary-600 hover:bg-primary-700"
-                }`}
+                className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:opacity-50"
               >
                 {isCreating ? "Creating..." : "Create"}
               </button>
@@ -174,11 +170,7 @@ export const OrganizationDialog: React.FC<OrganizationDialogProps> = ({
               <button
                 onClick={handleJoinOrg}
                 disabled={!inviteCode.trim() || isJoining}
-                className={`px-4 py-2 rounded-md text-white font-medium ${
-                  !inviteCode.trim() || isJoining
-                    ? "bg-primary-300 cursor-not-allowed"
-                    : "bg-primary-600 hover:bg-primary-700"
-                }`}
+                className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:opacity-50"
               >
                 {isJoining ? "Joining..." : "Join"}
               </button>

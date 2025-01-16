@@ -2,11 +2,23 @@ import { Pinecone } from "@pinecone-database/pinecone";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { PineconeStore } from "@langchain/pinecone";
 import pool from "../config/database";
+import { LangChainTracer } from "langchain/callbacks";
+import { Client } from "langsmith";
 
 interface VectorStoreConfig {
   type: "organization" | "channel";
   organizationId?: string;
   channelId?: string;
+}
+
+interface MessageDocument {
+  content: string;
+  userId: string;
+  username: string;
+  timestamp: Date;
+  channelName: string;
+  messageType: 'message' | 'reply';
+  parentMessageId?: string;
 }
 
 export class VectorStoreService {
@@ -31,6 +43,8 @@ export class VectorStoreService {
     this.embeddings = new OpenAIEmbeddings({
       openAIApiKey: process.env.OPENAI_API_KEY,
     });
+
+    // The tracing will happen automatically when the env vars are set
   }
 
   private async getStoreNamespace({
@@ -91,7 +105,7 @@ export class VectorStoreService {
 
   async addDocuments(
     config: VectorStoreConfig,
-    documents: string[],
+    documents: MessageDocument[],
   ): Promise<void> {
     const namespace = await this.getStoreNamespace(config);
 
@@ -112,9 +126,16 @@ export class VectorStoreService {
       for (let i = 0; i < documents.length; i += batchSize) {
         const batch = documents.slice(i, i + batchSize);
         await vectorStore.addDocuments(
-          batch.map((content) => ({
-            pageContent: content,
-            metadata: { timestamp: new Date().toISOString() },
+          batch.map((doc) => ({
+            pageContent: doc.content,
+            metadata: {
+              userId: doc.userId,
+              username: doc.username,
+              timestamp: doc.timestamp.toISOString(),
+              channelName: doc.channelName,
+              messageType: doc.messageType,
+              parentMessageId: doc.parentMessageId,
+            },
           })),
         );
       }
@@ -128,10 +149,13 @@ export class VectorStoreService {
   }
 
   async getVectorStore(config: VectorStoreConfig): Promise<PineconeStore> {
-    return await PineconeStore.fromExistingIndex(this.embeddings, {
-      pineconeIndex: this.index,
-      namespace: await this.getStoreNamespace(config),
-    });
+    return await PineconeStore.fromExistingIndex(
+      this.embeddings,
+      {
+        pineconeIndex: this.index,
+        namespace: await this.getStoreNamespace(config),
+      },
+    );
   }
 
   async namespaceExists(config: VectorStoreConfig): Promise<boolean> {

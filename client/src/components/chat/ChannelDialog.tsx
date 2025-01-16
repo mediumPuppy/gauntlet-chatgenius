@@ -8,6 +8,7 @@ import {
 } from "../../services/channel";
 import { useNavigate } from "react-router-dom";
 import { useChannels } from "../../contexts/ChannelContext";
+import { createPortal } from 'react-dom';
 
 interface Channel {
   id: string;
@@ -93,7 +94,7 @@ export default function ChannelDialog({ isOpen, onClose }: ChannelDialogProps) {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
       style={{
@@ -209,6 +210,7 @@ export default function ChannelDialog({ isOpen, onClose }: ChannelDialogProps) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

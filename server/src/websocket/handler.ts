@@ -252,14 +252,30 @@ export class WebSocketHandler {
               // Update channel vector store first
               await vectorStoreService.addDocuments(
                 { type: "channel", channelId: data.channelId },
-                [data.content]
+                [{
+                  content: data.content,
+                  userId: ws.userId!,
+                  username: user.rows[0].username,
+                  timestamp: new Date(),
+                  channelName: channelCheck.rows[0].name,
+                  messageType: data.parentId ? 'reply' : 'message',
+                  parentMessageId: data.parentId
+                }]
               );
               console.log(`[VectorStore] Successfully updated channel store for ${data.channelId}`);
 
               // Then update organization vector store
               await vectorStoreService.addDocuments(
                 { type: "organization", organizationId },
-                [data.content]
+                [{
+                  content: data.content,
+                  userId: ws.userId!,
+                  username: user.rows[0].username,
+                  timestamp: new Date(),
+                  channelName: channelCheck.rows[0].name,
+                  messageType: data.parentId ? 'reply' : 'message',
+                  parentMessageId: data.parentId
+                }]
               );
               console.log(`[VectorStore] Successfully updated organization store for ${organizationId}`);
             } catch (error) {

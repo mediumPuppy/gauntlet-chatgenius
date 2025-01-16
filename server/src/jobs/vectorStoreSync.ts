@@ -113,13 +113,25 @@ export class VectorStoreSyncJob {
       );
 
       // Only get messages if we created a new namespace
-      const messages = await client.query(
-        `SELECT content FROM messages 
-         WHERE ${job.type === "organization" ? "channel_id IN (SELECT id FROM channels WHERE organization_id = $1)" : "channel_id = $1"}
-         AND created_at > $2
-         AND (bot_message IS NULL OR bot_message = false)
-         ORDER BY created_at ASC`,
-        [job.id, job.lastSync || new Date(0)],
+      const messages = await client.query(`
+        SELECT 
+          m.content,
+          m.user_id as "userId",
+          u.username,
+          m.created_at as timestamp,
+          c.name as "channelName",
+          CASE WHEN m.parent_id IS NOT NULL THEN 'reply' ELSE 'message' END as "messageType",
+          m.parent_id as "parentMessageId"
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        JOIN channels c ON m.channel_id = c.id
+        WHERE ${job.type === "organization" ? 
+          "channel_id IN (SELECT id FROM channels WHERE organization_id = $1)" : 
+          "channel_id = $1"}
+        AND m.created_at > $2
+        AND (m.bot_message IS NULL OR m.bot_message = false)
+        ORDER BY m.created_at ASC`,
+        [job.id, job.lastSync || new Date(0)]
       );
 
       if (messages.rows.length > 0) {
@@ -128,8 +140,9 @@ export class VectorStoreSyncJob {
         );
         await vectorStoreService.addDocuments(
           config,
-          messages.rows.map((row) => row.content),
+          messages.rows,
         );
+
       }
 
       await client.query("COMMIT");
