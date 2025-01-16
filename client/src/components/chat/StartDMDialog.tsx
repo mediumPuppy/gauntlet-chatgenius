@@ -6,6 +6,7 @@ import { searchUsers, startDM } from "../../services/user";
 import { useNavigate } from "react-router-dom";
 import { User } from "../../types/user";
 import { UserAvatar } from "../common/UserAvatar";
+import { createPortal } from 'react-dom';
 
 interface StartDMDialogProps {
   isOpen: boolean;
@@ -23,11 +24,23 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
   const { isUserOnline } = usePresence();
 
   useEffect(() => {
-    if (!searchQuery.trim() || !isOpen || !currentOrganization) {
+    // Clear everything when dialog closes
+    if (!isOpen) {
+      setSearchQuery("");
       setUsers([]);
       setError(null);
       return;
     }
+
+    // Don't search if no query or organization
+    if (!searchQuery.trim() || !currentOrganization) {
+      setUsers([]);
+      setError(null);
+      return;
+    }
+
+    // Don't search until at least one character is typed
+    if (searchQuery.trim().length < 1) return;
 
     const searchTimeout = setTimeout(async () => {
       try {
@@ -66,7 +79,7 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
       style={{
@@ -75,6 +88,11 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
         top: 0,
         width: "100vw",
         height: "100vh",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
       }}
     >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md relative">
@@ -154,6 +172,7 @@ export default function StartDMDialog({ isOpen, onClose }: StartDMDialogProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

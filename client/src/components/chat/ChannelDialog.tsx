@@ -104,6 +104,11 @@ export default function ChannelDialog({ isOpen, onClose }: ChannelDialogProps) {
         width: "100vw",
         height: "100vh",
       }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md relative">
         <div className="p-4 border-b">
