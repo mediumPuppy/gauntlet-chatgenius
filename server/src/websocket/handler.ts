@@ -34,6 +34,8 @@ const clients = new Map<string, Set<WebSocketClient>>();
 const userSockets = new Map<string, Set<WebSocketClient>>();
 
 export class WebSocketHandler {
+  private clientConnections = new Map<string, Set<WebSocketClient>>();
+  
   constructor(private wss: WebSocketServer) {
     this.setupHeartbeat();
 
@@ -162,10 +164,6 @@ export class WebSocketHandler {
 
       case "typing":
         await this.handleTypingMessage(ws, data as TypingMessage);
-        break;
-
-      case "reaction":
-        await this.handleReaction(ws, data as ReactionMessage);
         break;
 
       default:
@@ -461,8 +459,13 @@ export class WebSocketHandler {
       ws.isAlive = true;
     });
 
-    ws.on("error", (err) => {
-      console.error("WebSocket client error:", err);
+    ws.on("close", async () => {
+      await this.handleClientDisconnect(ws);
+    });
+
+    ws.on("error", (error) => {
+      console.error("WebSocket client error:", error);
+      this.handleClientDisconnect(ws);
     });
 
     ws.on("message", async (message: string) => {
@@ -473,21 +476,6 @@ export class WebSocketHandler {
         ws.send(
           JSON.stringify({ type: "error", error: "Invalid message format" }),
         );
-      }
-    });
-
-    ws.on("close", async (code, reason) => {
-      if (ws.userId) {
-        // Remove socket from user socket set
-        const userSocketSet = userSockets.get(ws.userId);
-        if (userSocketSet) {
-          userSocketSet.delete(ws);
-          if (userSocketSet.size === 0) {
-            userSockets.delete(ws.userId);
-            // Only update presence if user has no other active connections
-            await userQueries.updatePresence(ws.userId, false);
-          }
-        }
       }
     });
   }
@@ -755,6 +743,28 @@ ${formattedHistory}`
     } catch (error) {
       console.error("Error generating bot response:", error);
       throw error;
+    }
+  }
+
+  private async handleClientDisconnect(ws: WebSocketClient) {
+    if (!ws.userId) return;
+    
+    // Remove from all tracked collections
+    this.clientConnections.forEach((clients, key) => {
+      clients.delete(ws);
+      if (clients.size === 0) {
+        this.clientConnections.delete(key);
+      }
+    });
+
+    // Check if this was the user's last connection
+    const userConnections = Array.from(this.clientConnections.values())
+      .flatMap(clients => Array.from(clients))
+      .filter(client => client.userId === ws.userId);
+
+    if (userConnections.length === 0) {
+      await userQueries.updatePresence(ws.userId, false);
+      await this.broadcastPresenceUpdate(ws.userId, false);
     }
   }
 }

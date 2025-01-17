@@ -21,6 +21,8 @@ interface MessageContextType {
   isConnected: boolean;
   showReconnecting: boolean;
   error: string | null;
+  eventEmitter: EventTarget;
+  isDM: boolean;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -262,7 +264,7 @@ export function MessageProvider({
 
           setMessages((prev) => {
             // Using let because updatedMessages may be modified after parent message check
-            let updatedMessages = data.parentId
+            const updatedMessages = data.parentId
               ? prev.map((msg) =>
                   msg.id === data.parentId
                     ? {
@@ -362,6 +364,8 @@ export function MessageProvider({
         isConnected,
         showReconnecting,
         error,
+        eventEmitter,
+        isDM,
       }}
     >
       {children}

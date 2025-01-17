@@ -3,12 +3,10 @@ import { useEffect, useState } from "react";
 import { Message as MessageType } from "../../types/message";
 import { MessageInput } from "./MessageInput";
 import { API_URL } from "../../services/config";
-import { MessageProvider } from "../../contexts/MessageContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMessages } from "../../contexts/MessageContext";
 import { Message as MessageComponent } from "./MessageList";
 import { motion, AnimatePresence } from "framer-motion";
-import { useWebSocket } from "../../hooks/useWebSocket";
 
 interface ThreadPanelProps {
   messageId: string;
@@ -19,9 +17,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
   const [parent, setParent] = useState<MessageType | null>(null);
   const [replies, setReplies] = useState<MessageType[]>([]);
   const { token } = useAuth();
-  const { messages } = useMessages();
-  const { eventEmitter } = useWebSocket(parent?.channelId || "", !!parent?.dmId);
-  // Track the context of where this thread lives
+  const { messages, eventEmitter } = useMessages();
   const [threadContext, setThreadContext] = useState<{
     isDM: boolean;
     contextId: string;
@@ -221,18 +217,15 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
         </div>
 
         {parent && (
-          <MessageProvider 
-            channelId={parent.channelId || parent.dmId || ""} 
-            isDM={!!parent.dmId}
-          >
-            <div className="p-4 border-t border-gray-200">
-              <MessageInput
-                parentId={messageId}
-                placeholder={`Reply to thread...`}
-                isThread={true}
-              />
-            </div>
-          </MessageProvider>
+          <div className="p-4 border-t border-gray-200">
+            <MessageInput
+              parentId={messageId}
+              placeholder={`Reply to thread...`}
+              isThread={true}
+              channelId={parent.channelId || parent.dmId || ""}
+              isDM={!!parent.dmId}
+            />
+          </div>
         )}
       </motion.div>
     </AnimatePresence>
