@@ -219,6 +219,17 @@ export class WebSocketHandler {
           [data.id, data.content, ws.userId, data.channelId, data.parentId],
         );
 
+        // If this is a reply, update the parent message's metadata
+        if (data.parentId) {
+          await pool.query(
+            `UPDATE messages 
+             SET has_replies = true, 
+                 reply_count = COALESCE(reply_count, 0) + 1 
+             WHERE id = $1`,
+            [data.parentId]
+          );
+        }
+
         // Broadcast to DM participants
         await this.broadcastToDM(data.channelId, {
           type: "message",
@@ -254,6 +265,17 @@ export class WebSocketHandler {
           "INSERT INTO messages (id, content, user_id, channel_id, parent_id, created_at) VALUES ($1, $2, $3, $4, $5::uuid, NOW())",
           [data.id, data.content, ws.userId, data.channelId, data.parentId || null],
         );
+
+        // If this is a reply, update the parent message's metadata
+        if (data.parentId) {
+          await pool.query(
+            `UPDATE messages 
+             SET has_replies = true, 
+                 reply_count = COALESCE(reply_count, 0) + 1 
+             WHERE id = $1`,
+            [data.parentId]
+          );
+        }
 
         // Broadcast to channel members immediately
         await this.broadcastToChannel(data.channelId, {

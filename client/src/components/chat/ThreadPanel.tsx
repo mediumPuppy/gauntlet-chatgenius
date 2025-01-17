@@ -134,7 +134,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
             <MessageComponent 
               message={parent} 
               onThreadClick={() => {}} 
-              isThreadView={true}
+              hideThreadControls={true}
             />
           )}
 
@@ -144,7 +144,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
                 key={reply.id}
                 message={reply}
                 onThreadClick={() => {}}
-                isThreadView={true}
+                hideThreadControls={true}
               />
             ))}
           </div>

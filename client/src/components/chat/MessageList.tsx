@@ -13,12 +13,12 @@ const Message = memo(
     message,
     onThreadClick,
     isHighlighted,
-    isThreadView = false,
+    hideThreadControls = false,
   }: {
     message: MessageType;
     onThreadClick: (threadId: string) => void;
     isHighlighted?: boolean;
-    isThreadView?: boolean;
+    hideThreadControls?: boolean;
   }) => {
     // const navigate = useNavigate();
     const { token, user } = useAuth();
@@ -33,7 +33,7 @@ const Message = memo(
       return message.reactions;
     }, [message.reactions]);
 
-    const handleEmojiSelect = async (emoji: any) => {
+    const handleEmojiSelect = async (emoji: { native: string }) => {
       try {
         await addReaction(token!, message.id, emoji.native);
         setShowEmojiPicker(false);
@@ -150,6 +150,27 @@ const Message = memo(
       }
     }, [isHighlighted]);
 
+    // Updated button rendering logic
+    const renderThreadButton = () => {
+      if (hideThreadControls) return null;
+      
+      return message.hasReplies ? (
+        <button
+          onClick={() => onThreadClick(message.id)}
+          className="text-sm text-primary-600 hover:underline"
+        >
+          Thread ({message.replyCount})
+        </button>
+      ) : (
+        <button
+          onClick={() => onThreadClick(message.id)}
+          className="text-sm text-primary-600 hover:underline md:hidden md:group-hover:inline-block"
+        >
+          Reply
+        </button>
+      );
+    };
+
     return (
       <div
         ref={messageRef}
@@ -165,24 +186,7 @@ const Message = memo(
               {new Date(message.timestamp).toLocaleTimeString()}
             </span>
           </div>
-
-          {!isThreadView && (
-            message.hasReplies ? (
-              <button
-                onClick={() => onThreadClick(message.id)}
-                className="text-sm text-primary-600 hover:underline md:hidden md:group-hover:inline-block"
-              >
-                Thread ({message.replyCount})
-              </button>
-            ) : (
-              <button
-                onClick={() => onThreadClick(message.id)}
-                className="text-sm text-primary-600 hover:underline md:hidden md:group-hover:inline-block"
-              >
-                Reply
-              </button>
-            )
-          )}
+          {renderThreadButton()}
         </div>
         {renderContent(message.content)}
 
@@ -239,7 +243,7 @@ const TypingIndicator = memo(
     typingUsers,
     currentUserId,
   }: {
-    typingUsers: any[];
+    typingUsers: Array<{ userId: string; username: string }>;
     currentUserId?: string;
   }) => {
     const formatTypingUsers = useCallback(
@@ -388,7 +392,6 @@ export function MessageList({
               message={message}
               onThreadClick={onThreadClick}
               isHighlighted={message.id === highlightedId}
-              isThreadView={message.hasReplies}
             />
           ))}
           <div className="h-6">

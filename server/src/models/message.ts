@@ -29,7 +29,10 @@ export const messageQueries = {
         m.channel_id,
         m.dm_id,
         u.username as sender_name,
-        m.created_at as timestamp
+        m.created_at as timestamp,
+        m.has_replies,
+        m.reply_count,
+        m.parent_id
        FROM messages m 
        JOIN users u ON m.user_id = u.id 
        WHERE m.channel_id = $1 
@@ -47,6 +50,9 @@ export const messageQueries = {
       dmId: msg.dm_id,
       senderName: msg.sender_name,
       timestamp: new Date(msg.timestamp).getTime(),
+      hasReplies: msg.has_replies,
+      replyCount: msg.reply_count,
+      parentId: msg.parent_id
     }));
   },
 
