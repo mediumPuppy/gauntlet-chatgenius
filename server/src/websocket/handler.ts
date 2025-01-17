@@ -165,7 +165,7 @@ export class WebSocketHandler {
         break;
 
       case "reaction":
-        await this.handleReaction(ws, data);
+        await this.handleReaction(ws, data as ReactionMessage);
         break;
 
       default:
@@ -414,44 +414,43 @@ export class WebSocketHandler {
     }
   }
 
-  public async handleReaction(ws: WebSocketClient | null, data: any) {
+  public async handleReaction(ws: WebSocketClient | null, data: ReactionMessage) {
     try {
-      const { messageId, emoji, action } = data;
-
-      // Get the channel/DM ID and parent_id for this message
+      // Get channel/DM info for the message
       const message = await pool.query(
-        "SELECT channel_id, dm_id, parent_id FROM messages WHERE id = $1",
-        [messageId],
+        "SELECT channel_id, dm_id FROM messages WHERE id = $1",
+        [data.messageId]
       );
 
       if (message.rows.length === 0) {
-        ws?.send(JSON.stringify({ type: "error", error: "Message not found" }));
+        console.error("Message not found for reaction:", data.messageId);
         return;
       }
 
-      const { channel_id, dm_id, parent_id } = message.rows[0];
+      const { channel_id, dm_id } = message.rows[0];
 
-      // Broadcast to the appropriate channel or DM
+      // Create the reaction message without parentId
       const reactionMessage: ReactionMessage = {
         type: "reaction",
-        messageId,
-        userId: ws?.userId || "",
-        emoji,
-        action,
-        parentId: parent_id,
+        messageId: data.messageId,
+        userId: ws?.userId || data.userId || "",
+        emoji: data.emoji,
+        action: data.action,
         channelId: channel_id || "",
       };
 
-      if (channel_id) {
-        await this.broadcastToChannel(channel_id, reactionMessage);
-      } else if (dm_id) {
+      // Broadcast to appropriate channel or DM
+      if (dm_id) {
         await this.broadcastToDM(dm_id, reactionMessage);
+      } else if (channel_id) {
+        await this.broadcastToChannel(channel_id, reactionMessage);
       }
     } catch (error) {
       console.error("Error handling reaction:", error);
-      ws?.send(
-        JSON.stringify({ type: "error", error: "Failed to process reaction" }),
-      );
+      ws?.send(JSON.stringify({ 
+        type: "error", 
+        error: "Failed to process reaction" 
+      }));
     }
   }
 

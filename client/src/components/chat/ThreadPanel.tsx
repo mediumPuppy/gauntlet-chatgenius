@@ -8,6 +8,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useMessages } from "../../contexts/MessageContext";
 import { Message as MessageComponent } from "./MessageList";
 import { motion, AnimatePresence } from "framer-motion";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
 interface ThreadPanelProps {
   messageId: string;
@@ -19,6 +20,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
   const [replies, setReplies] = useState<MessageType[]>([]);
   const { token } = useAuth();
   const { messages } = useMessages();
+  const { eventEmitter } = useWebSocket(parent?.channelId || "", !!parent?.dmId);
   // Track the context of where this thread lives
   const [threadContext, setThreadContext] = useState<{
     isDM: boolean;
@@ -92,7 +94,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
     if (updatedParent && parent) {
       // Only update specific fields to avoid infinite loop
       const hasChanges =
-        updatedParent.reactions !== parent.reactions ||
+        (messageId === updatedParent.id ? updatedParent.reactions !== parent.reactions : false) ||
         updatedParent.replyCount !== parent.replyCount ||
         updatedParent.hasReplies !== parent.hasReplies;
 
@@ -106,6 +108,74 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
       }
     }
   }, [messages, messageId, threadContext, parent]);
+
+  // Update the reaction handling effect
+  useEffect(() => {
+    const handleReaction = (event: CustomEvent) => {
+      const data = event.detail;
+      
+      if (data.type !== 'reaction') return;
+      
+      const { messageId, userId, emoji, action } = data;
+
+      // Update parent message reactions if it's the target
+      if (messageId === parent?.id) {
+        setParent(current => {
+          if (!current) return current;
+          
+          const currentReactions = { ...(current.reactions || {}) };
+          
+          if (action === "added") {
+            const currentUsers = currentReactions[emoji] || [];
+            currentReactions[emoji] = [...currentUsers, userId];
+          } else {
+            if (currentReactions[emoji]) {
+              currentReactions[emoji] = currentReactions[emoji].filter(
+                (id) => id !== userId
+              );
+              if (currentReactions[emoji].length === 0) {
+                delete currentReactions[emoji];
+              }
+            }
+          }
+          
+          return { ...current, reactions: currentReactions };
+        });
+      }
+
+      // Update reply reactions if the target is a reply
+      setReplies(current => 
+        current.map(reply => {
+          if (reply.id === messageId) {
+            const currentReactions = { ...(reply.reactions || {}) };
+            
+            if (action === "added") {
+              const currentUsers = currentReactions[emoji] || [];
+              currentReactions[emoji] = [...currentUsers, userId];
+            } else {
+              if (currentReactions[emoji]) {
+                currentReactions[emoji] = currentReactions[emoji].filter(
+                  (id) => id !== userId
+                );
+                if (currentReactions[emoji].length === 0) {
+                  delete currentReactions[emoji];
+                }
+              }
+            }
+            
+            return { ...reply, reactions: currentReactions };
+          }
+          return reply;
+        })
+      );
+    };
+
+    eventEmitter?.addEventListener('ws-message', handleReaction as EventListener);
+
+    return () => {
+      eventEmitter?.removeEventListener('ws-message', handleReaction as EventListener);
+    };
+  }, [eventEmitter, messageId, parent, replies]);
 
   return (
     <AnimatePresence mode="wait">
