@@ -72,4 +72,5 @@ export interface ReactionMessage extends WebSocketMessage {
   emoji: string;
   action: "added" | "removed";
   parentId?: string;
+  dmId?: string;
 }

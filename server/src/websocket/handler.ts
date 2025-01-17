@@ -388,21 +388,18 @@ export class WebSocketHandler {
       const { user1_id, user2_id } = participants.rows[0];
       const messageStr = JSON.stringify(message);
 
-      // Get sender ID based on message type
-      let senderId: string | undefined;
-      if (message.type === "message") {
-        senderId = (message as ChatMessage).senderId;
-      } else if (message.type === "typing") {
-        senderId = (message as TypingMessage).userId;
-      }
+      // Only exclude sender for typing notifications
+      const excludeSender = message.type === "typing" ? 
+        (message as TypingMessage).userId : undefined;
 
-      // Send to all connected clients of both participants except the sender
+      // Send to all connected clients of both participants
+      // (excluding sender only for typing notifications)
       this.wss.clients.forEach((client: WebSocketClient) => {
         if (
           client.readyState === client.OPEN &&
           client.userId &&
           (client.userId === user1_id || client.userId === user2_id) &&
-          (!senderId || client.userId !== senderId)
+          (!excludeSender || client.userId !== excludeSender)
         ) {
           client.send(messageStr);
         }
@@ -414,7 +411,6 @@ export class WebSocketHandler {
 
   public async handleReaction(ws: WebSocketClient | null, data: ReactionMessage) {
     try {
-      // Get channel/DM info for the message
       const message = await pool.query(
         "SELECT channel_id, dm_id FROM messages WHERE id = $1",
         [data.messageId]
@@ -427,7 +423,7 @@ export class WebSocketHandler {
 
       const { channel_id, dm_id } = message.rows[0];
 
-      // Create the reaction message without parentId
+      // Include dmId in the reaction message if it's a DM:
       const reactionMessage: ReactionMessage = {
         type: "reaction",
         messageId: data.messageId,
@@ -435,6 +431,7 @@ export class WebSocketHandler {
         emoji: data.emoji,
         action: data.action,
         channelId: channel_id || "",
+        dmId: dm_id || "",
       };
 
       // Broadcast to appropriate channel or DM
