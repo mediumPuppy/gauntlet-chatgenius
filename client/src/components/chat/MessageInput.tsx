@@ -126,7 +126,7 @@ export function MessageInput({
     e?.preventDefault();
     const messageText = newMessage.trim();
 
-    if ((!effectiveChannelId && !isThread) || (!messageText && !filePreview)) {
+    if (((!effectiveChannelId && !effectiveIsDM) && !isThread) || (!messageText && !filePreview)) {
       return;
     }
 
