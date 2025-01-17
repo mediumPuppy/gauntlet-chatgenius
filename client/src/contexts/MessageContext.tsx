@@ -21,6 +21,8 @@ interface MessageContextType {
   isConnected: boolean;
   showReconnecting: boolean;
   error: string | null;
+  eventEmitter: EventTarget;
+  isDM: boolean;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -119,7 +121,7 @@ export function MessageProvider({
         });
       }
     },
-    [user, channelId, wsSendMessage, messages, token],
+    [user, channelId, wsSendMessage, messages, token, isDM],
   );
 
   // Fetch message history when channel changes
@@ -261,8 +263,8 @@ export function MessageProvider({
           }
 
           setMessages((prev) => {
-            // First update the parent message if needed
-            let updatedMessages = data.parentId
+            // Using let because updatedMessages may be modified after parent message check
+            const updatedMessages = data.parentId
               ? prev.map((msg) =>
                   msg.id === data.parentId
                     ? {
@@ -313,24 +315,17 @@ export function MessageProvider({
 
           setMessages((prev) => {
             return prev.map((msg) => {
-              // Check if this is the message that got the reaction
-              // OR if this is a parent message that contains the reacted message in its thread
-              if (
-                msg.id === messageId ||
-                (msg.hasReplies && data.parentId === msg.id)
-              ) {
-                // Create a new reactions object if it doesn't exist
+              // Only update the specific message that received the reaction
+              if (msg.id === messageId) {
                 const currentReactions = { ...(msg.reactions || {}) };
 
                 if (action === "added") {
-                  // Create new array if emoji doesn't exist
                   const currentUsers = currentReactions[emoji] || [];
                   currentReactions[emoji] = [...currentUsers, userId];
                 } else {
-                  // Remove user from the emoji's users array
                   if (currentReactions[emoji]) {
                     currentReactions[emoji] = currentReactions[emoji].filter(
-                      (id) => id !== userId,
+                      (id) => id !== userId
                     );
                     if (currentReactions[emoji].length === 0) {
                       delete currentReactions[emoji];
@@ -369,6 +364,8 @@ export function MessageProvider({
         isConnected,
         showReconnecting,
         error,
+        eventEmitter,
+        isDM,
       }}
     >
       {children}

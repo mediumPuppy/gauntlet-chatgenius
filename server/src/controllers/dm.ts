@@ -203,17 +203,39 @@ export const getDMMessages = async (req: AuthRequest, res: Response) => {
         .json({ error: "Not authorized to access this DM" });
     }
 
-    // Get messages
+    // Get messages with reactions and reply information
     const messages = await pool.query(
-      `SELECT 
+      `WITH reaction_groups AS (
+        SELECT 
+          message_id,
+          emoji,
+          array_agg(user_id::text) as user_ids
+        FROM message_reactions
+        GROUP BY message_id, emoji
+      )
+      SELECT 
         m.id,
         m.content,
-        m.user_id as userId,
-        u.username as senderName,
-        m.created_at as timestamp
+        m.user_id as "userId",
+        m.dm_id as "dmId",
+        u.username as "senderName",
+        m.created_at as timestamp,
+        m.has_replies as "hasReplies",
+        m.reply_count as "replyCount",
+        m.parent_id as "parentId",
+        COALESCE(
+          jsonb_object_agg(
+            rg.emoji,
+            rg.user_ids
+          ) FILTER (WHERE rg.emoji IS NOT NULL),
+          '{}'::jsonb
+        ) as reactions
       FROM messages m
       JOIN users u ON m.user_id = u.id
+      LEFT JOIN reaction_groups rg ON m.id = rg.message_id
       WHERE m.dm_id = $1
+      AND m.parent_id IS NULL
+      GROUP BY m.id, u.username
       ORDER BY m.created_at ASC`,
       [dmId],
     );

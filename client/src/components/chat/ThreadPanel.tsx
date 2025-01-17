@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Message as MessageType } from "../../types/message";
 import { MessageInput } from "./MessageInput";
 import { API_URL } from "../../services/config";
-import { MessageProvider } from "../../contexts/MessageContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMessages } from "../../contexts/MessageContext";
 import { Message as MessageComponent } from "./MessageList";
@@ -18,8 +17,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
   const [parent, setParent] = useState<MessageType | null>(null);
   const [replies, setReplies] = useState<MessageType[]>([]);
   const { token } = useAuth();
-  const { messages } = useMessages();
-  // Track the context of where this thread lives
+  const { messages, eventEmitter } = useMessages();
   const [threadContext, setThreadContext] = useState<{
     isDM: boolean;
     contextId: string;
@@ -92,7 +90,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
     if (updatedParent && parent) {
       // Only update specific fields to avoid infinite loop
       const hasChanges =
-        updatedParent.reactions !== parent.reactions ||
+        (messageId === updatedParent.id ? updatedParent.reactions !== parent.reactions : false) ||
         updatedParent.replyCount !== parent.replyCount ||
         updatedParent.hasReplies !== parent.hasReplies;
 
@@ -106,6 +104,74 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
       }
     }
   }, [messages, messageId, threadContext, parent]);
+
+  // Update the reaction handling effect
+  useEffect(() => {
+    const handleReaction = (event: CustomEvent) => {
+      const data = event.detail;
+      
+      if (data.type !== 'reaction') return;
+      
+      const { messageId, userId, emoji, action } = data;
+
+      // Update parent message reactions if it's the target
+      if (messageId === parent?.id) {
+        setParent(current => {
+          if (!current) return current;
+          
+          const currentReactions = { ...(current.reactions || {}) };
+          
+          if (action === "added") {
+            const currentUsers = currentReactions[emoji] || [];
+            currentReactions[emoji] = [...currentUsers, userId];
+          } else {
+            if (currentReactions[emoji]) {
+              currentReactions[emoji] = currentReactions[emoji].filter(
+                (id) => id !== userId
+              );
+              if (currentReactions[emoji].length === 0) {
+                delete currentReactions[emoji];
+              }
+            }
+          }
+          
+          return { ...current, reactions: currentReactions };
+        });
+      }
+
+      // Update reply reactions if the target is a reply
+      setReplies(current => 
+        current.map(reply => {
+          if (reply.id === messageId) {
+            const currentReactions = { ...(reply.reactions || {}) };
+            
+            if (action === "added") {
+              const currentUsers = currentReactions[emoji] || [];
+              currentReactions[emoji] = [...currentUsers, userId];
+            } else {
+              if (currentReactions[emoji]) {
+                currentReactions[emoji] = currentReactions[emoji].filter(
+                  (id) => id !== userId
+                );
+                if (currentReactions[emoji].length === 0) {
+                  delete currentReactions[emoji];
+                }
+              }
+            }
+            
+            return { ...reply, reactions: currentReactions };
+          }
+          return reply;
+        })
+      );
+    };
+
+    eventEmitter?.addEventListener('ws-message', handleReaction as EventListener);
+
+    return () => {
+      eventEmitter?.removeEventListener('ws-message', handleReaction as EventListener);
+    };
+  }, [eventEmitter, messageId, parent, replies]);
 
   return (
     <AnimatePresence mode="wait">
@@ -134,7 +200,7 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
             <MessageComponent 
               message={parent} 
               onThreadClick={() => {}} 
-              isThreadView={true}
+              hideThreadControls={true}
             />
           )}
 
@@ -144,25 +210,22 @@ export function ThreadPanel({ messageId, onClose }: ThreadPanelProps) {
                 key={reply.id}
                 message={reply}
                 onThreadClick={() => {}}
-                isThreadView={true}
+                hideThreadControls={true}
               />
             ))}
           </div>
         </div>
 
         {parent && (
-          <MessageProvider 
-            channelId={parent.channelId || parent.dmId || ""} 
-            isDM={!!parent.dmId}
-          >
-            <div className="p-4 border-t border-gray-200">
-              <MessageInput
-                parentId={messageId}
-                placeholder={`Reply to thread...`}
-                isThread={true}
-              />
-            </div>
-          </MessageProvider>
+          <div className="p-4 border-t border-gray-200">
+            <MessageInput
+              parentId={messageId}
+              placeholder={`Reply to thread...`}
+              isThread={true}
+              channelId={parent.channelId || parent.dmId || ""}
+              isDM={!!parent.dmId}
+            />
+          </div>
         )}
       </motion.div>
     </AnimatePresence>

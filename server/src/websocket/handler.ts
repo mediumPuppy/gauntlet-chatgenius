@@ -34,6 +34,8 @@ const clients = new Map<string, Set<WebSocketClient>>();
 const userSockets = new Map<string, Set<WebSocketClient>>();
 
 export class WebSocketHandler {
+  private clientConnections = new Map<string, Set<WebSocketClient>>();
+  
   constructor(private wss: WebSocketServer) {
     this.setupHeartbeat();
 
@@ -164,10 +166,6 @@ export class WebSocketHandler {
         await this.handleTypingMessage(ws, data as TypingMessage);
         break;
 
-      case "reaction":
-        await this.handleReaction(ws, data);
-        break;
-
       default:
         console.error("Unknown message type:", data.type);
     }
@@ -219,6 +217,17 @@ export class WebSocketHandler {
           [data.id, data.content, ws.userId, data.channelId, data.parentId],
         );
 
+        // If this is a reply, update the parent message's metadata
+        if (data.parentId) {
+          await pool.query(
+            `UPDATE messages 
+             SET has_replies = true, 
+                 reply_count = COALESCE(reply_count, 0) + 1 
+             WHERE id = $1`,
+            [data.parentId]
+          );
+        }
+
         // Broadcast to DM participants
         await this.broadcastToDM(data.channelId, {
           type: "message",
@@ -254,6 +263,17 @@ export class WebSocketHandler {
           "INSERT INTO messages (id, content, user_id, channel_id, parent_id, created_at) VALUES ($1, $2, $3, $4, $5::uuid, NOW())",
           [data.id, data.content, ws.userId, data.channelId, data.parentId || null],
         );
+
+        // If this is a reply, update the parent message's metadata
+        if (data.parentId) {
+          await pool.query(
+            `UPDATE messages 
+             SET has_replies = true, 
+                 reply_count = COALESCE(reply_count, 0) + 1 
+             WHERE id = $1`,
+            [data.parentId]
+          );
+        }
 
         // Broadcast to channel members immediately
         await this.broadcastToChannel(data.channelId, {
@@ -368,21 +388,18 @@ export class WebSocketHandler {
       const { user1_id, user2_id } = participants.rows[0];
       const messageStr = JSON.stringify(message);
 
-      // Get sender ID based on message type
-      let senderId: string | undefined;
-      if (message.type === "message") {
-        senderId = (message as ChatMessage).senderId;
-      } else if (message.type === "typing") {
-        senderId = (message as TypingMessage).userId;
-      }
+      // Only exclude sender for typing notifications
+      const excludeSender = message.type === "typing" ? 
+        (message as TypingMessage).userId : undefined;
 
-      // Send to all connected clients of both participants except the sender
+      // Send to all connected clients of both participants
+      // (excluding sender only for typing notifications)
       this.wss.clients.forEach((client: WebSocketClient) => {
         if (
           client.readyState === client.OPEN &&
           client.userId &&
           (client.userId === user1_id || client.userId === user2_id) &&
-          (!senderId || client.userId !== senderId)
+          (!excludeSender || client.userId !== excludeSender)
         ) {
           client.send(messageStr);
         }
@@ -392,44 +409,43 @@ export class WebSocketHandler {
     }
   }
 
-  public async handleReaction(ws: WebSocketClient | null, data: any) {
+  public async handleReaction(ws: WebSocketClient | null, data: ReactionMessage) {
     try {
-      const { messageId, emoji, action } = data;
-
-      // Get the channel/DM ID and parent_id for this message
       const message = await pool.query(
-        "SELECT channel_id, dm_id, parent_id FROM messages WHERE id = $1",
-        [messageId],
+        "SELECT channel_id, dm_id FROM messages WHERE id = $1",
+        [data.messageId]
       );
 
       if (message.rows.length === 0) {
-        ws?.send(JSON.stringify({ type: "error", error: "Message not found" }));
+        console.error("Message not found for reaction:", data.messageId);
         return;
       }
 
-      const { channel_id, dm_id, parent_id } = message.rows[0];
+      const { channel_id, dm_id } = message.rows[0];
 
-      // Broadcast to the appropriate channel or DM
+      // Include dmId in the reaction message if it's a DM:
       const reactionMessage: ReactionMessage = {
         type: "reaction",
-        messageId,
-        userId: ws?.userId || "",
-        emoji,
-        action,
-        parentId: parent_id,
+        messageId: data.messageId,
+        userId: ws?.userId || data.userId || "",
+        emoji: data.emoji,
+        action: data.action,
         channelId: channel_id || "",
+        dmId: dm_id || "",
       };
 
-      if (channel_id) {
-        await this.broadcastToChannel(channel_id, reactionMessage);
-      } else if (dm_id) {
+      // Broadcast to appropriate channel or DM
+      if (dm_id) {
         await this.broadcastToDM(dm_id, reactionMessage);
+      } else if (channel_id) {
+        await this.broadcastToChannel(channel_id, reactionMessage);
       }
     } catch (error) {
       console.error("Error handling reaction:", error);
-      ws?.send(
-        JSON.stringify({ type: "error", error: "Failed to process reaction" }),
-      );
+      ws?.send(JSON.stringify({ 
+        type: "error", 
+        error: "Failed to process reaction" 
+      }));
     }
   }
 
@@ -440,8 +456,13 @@ export class WebSocketHandler {
       ws.isAlive = true;
     });
 
-    ws.on("error", (err) => {
-      console.error("WebSocket client error:", err);
+    ws.on("close", async () => {
+      await this.handleClientDisconnect(ws);
+    });
+
+    ws.on("error", (error) => {
+      console.error("WebSocket client error:", error);
+      this.handleClientDisconnect(ws);
     });
 
     ws.on("message", async (message: string) => {
@@ -452,21 +473,6 @@ export class WebSocketHandler {
         ws.send(
           JSON.stringify({ type: "error", error: "Invalid message format" }),
         );
-      }
-    });
-
-    ws.on("close", async (code, reason) => {
-      if (ws.userId) {
-        // Remove socket from user socket set
-        const userSocketSet = userSockets.get(ws.userId);
-        if (userSocketSet) {
-          userSocketSet.delete(ws);
-          if (userSocketSet.size === 0) {
-            userSockets.delete(ws.userId);
-            // Only update presence if user has no other active connections
-            await userQueries.updatePresence(ws.userId, false);
-          }
-        }
       }
     });
   }
@@ -734,6 +740,28 @@ ${formattedHistory}`
     } catch (error) {
       console.error("Error generating bot response:", error);
       throw error;
+    }
+  }
+
+  private async handleClientDisconnect(ws: WebSocketClient) {
+    if (!ws.userId) return;
+    
+    // Remove from all tracked collections
+    this.clientConnections.forEach((clients, key) => {
+      clients.delete(ws);
+      if (clients.size === 0) {
+        this.clientConnections.delete(key);
+      }
+    });
+
+    // Check if this was the user's last connection
+    const userConnections = Array.from(this.clientConnections.values())
+      .flatMap(clients => Array.from(clients))
+      .filter(client => client.userId === ws.userId);
+
+    if (userConnections.length === 0) {
+      await userQueries.updatePresence(ws.userId, false);
+      await this.broadcastPresenceUpdate(ws.userId, false);
     }
   }
 }

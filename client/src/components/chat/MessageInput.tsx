@@ -22,12 +22,16 @@ interface MessageInputProps {
   parentId?: string;
   placeholder?: string;
   isThread?: boolean;
+  channelId?: string;
+  isDM?: boolean;
 }
 
 export function MessageInput({
   parentId,
   placeholder,
   isThread = false,
+  channelId,
+  isDM = false,
 }: MessageInputProps) {
   const [newMessage, setNewMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -50,6 +54,12 @@ export function MessageInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { currentOrganization } = useOrganization();
 
+  // If channelId/isDM are provided via props, use those. Otherwise, fall back to context
+  const messageContext = useMessages();
+  const effectiveChannelId = channelId || currentChannel?.id;
+  const effectiveIsDM = isDM || messageContext.isDM;
+  const isDisabled = (!effectiveChannelId && !effectiveIsDM && !isThread) || isUploading;
+
   const handleFileSelect = async (file: File) => {
     if (file.size > MAX_FILE_SIZE) {
       alert("File size must be less than 10MB");
@@ -57,7 +67,7 @@ export function MessageInput({
     }
 
     const isImage = file.type.startsWith("image/");
-    let preview: FilePreview = { file, type: isImage ? "image" : "other" };
+    const preview: FilePreview = { file, type: isImage ? "image" : "other" };
 
     if (isImage) {
       const previewUrl = URL.createObjectURL(file);
@@ -116,22 +126,16 @@ export function MessageInput({
     e?.preventDefault();
     const messageText = newMessage.trim();
 
-    // Don't send if we have no content AND no file
-    if (
-      (!currentChannel && !dmId && !isThread) ||
-      (!messageText && !filePreview)
-    )
+    if (((!effectiveChannelId && !effectiveIsDM) && !isThread) || (!messageText && !filePreview)) {
       return;
+    }
 
     try {
-      // If we have a file, upload it first
       if (filePreview) {
         await handleFileUpload(filePreview.file);
       }
 
-      // Only send text message if we have text
       if (messageText) {
-        // Pass parentId when sending message in thread
         sendMessage(messageText, parentId);
         setNewMessage("");
       }
@@ -240,8 +244,6 @@ export function MessageInput({
     return text.length > 40 ? text.substring(0, 37) + "..." : text;
   };
 
-  const isDisabled = !currentChannel && !dmId && !isThread;
-
   const getCursorPosition = () => {
     if (!textareaRef.current) return { top: 0, left: 0 };
     const textarea = textareaRef.current;
@@ -308,7 +310,7 @@ export function MessageInput({
       // Clear users when there's no query
       setUsers([]);
     }
-  }, [newMessage, mentionState.startIndex, token, currentOrganization]);
+  }, [newMessage, mentionState.startIndex, mentionState.isOpen, token, currentOrganization]);
 
   return (
     <div className="h-auto min-h-[5rem] max-h-[16rem] border-t p-4 flex flex-col justify-end">
